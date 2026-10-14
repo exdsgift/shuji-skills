@@ -1,0 +1,25 @@
+# Local secrets; keep shareable examples
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local dependencies and caches
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Agent-local settings and worktrees
+.claude/settings.local.json
+.claude/worktrees/
