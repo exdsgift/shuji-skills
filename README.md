@@ -7,6 +7,7 @@
 | Skill | What it does |
 | --- | --- |
 | 🍱 [bento-diagrams](skills/bento-diagrams) · 弁当 | Draws engineering diagrams in Apple's system look: swimlanes and regions on a white or black page, cards with coloured icon tiles, yellow decisions, green outcomes, light and dark in one file, checked for overlaps. Named after the bentō, the lunch box with a compartment for each thing. |
+| ⚔️ [bushido-setup](skills/bushido-setup) · 武士道 | Sets up a new or existing repo for coding agents: the stack's official generator, fifteen precepts from the classic programming manuals in a short AGENTS.md, folder instructions and process skills only where they carry facts the code does not show, docs and CI that keep them current, and companion skills for every agent. Run again, it audits the repo. Named after the samurai's code of conduct. |
 
 ## Install
 

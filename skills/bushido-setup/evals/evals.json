@@ -1,0 +1,153 @@
+{
+  "skill_name": "bushido-setup",
+  "notes": "Each case starts from the repo state in `setup`, prepared by the runner before the agent starts. Prompts answer the skill's questions up front and give the go-ahead for the plan, so a run needs no human; the go-ahead never covers an item the plan marks optional. Run with DISABLE_TELEMETRY=1 so eval installs stay out of the skills.sh counts, tell the agent to count the machine as having no companion skills, and forbid every write to a remote: the fixtures' remotes point at repositories that are not ours.",
+  "evals": [
+    {
+      "id": "python-service-new",
+      "setup": "An empty git repo with one remote, origin = https://github.com/acme/ledger.git, and no commits.",
+      "prompt": "Set up this repo for a new Python service called ledger: an HTTP API that records card payments, deployed and never installed as a package. I work on it with two colleagues and we track work in GitHub issues. It reads STRIPE_API_KEY and DATABASE_URL; both live in 1Password (vault \"ledger\") and in the GitHub environment prod, and the payments team owns them. License: MIT. Release process: we tag vX.Y.Z on main, GitHub Actions builds the image and deploys it to Fly.io, and we never deploy on a Friday. Amounts are always integer cents, never floats. You have the go-ahead for the plan you show.",
+      "expected_output": "A uv service scaffold with the cross-cutting files, a CI workflow with pinned actions, a short AGENTS.md with the marker, the fifteen precepts, the workflow, the skills lines and a map, CLAUDE.md and the Gemini settings, docs/ with the index, Matt's GitHub tracker files, triage labels and secrets.md, a user-only release skill built only from the given facts, the companion skills in two real copies, and a hand-over with the verify results.",
+      "assertions": [
+        "uv init ran with --app --no-package and --author-from none; pyproject.toml and uv.lock exist",
+        "AGENTS.md is under 100 lines, starts with the bushido-setup marker, and carries the Precepts block from references/precepts.md word for word",
+        "AGENTS.md holds the integer-cents rule and no overview, directory tree or stack summary",
+        "CLAUDE.md holds exactly @AGENTS.md; .gemini/settings.json lists AGENTS.md in context.fileName",
+        "docs/README.md lists every entry of docs/; docs/agents/ holds issue-tracker.md from the GitHub template, domain.md and triage-labels.md",
+        "docs/secrets.md has one row each for STRIPE_API_KEY and DATABASE_URL with no value; .env.example lists both names with empty values; .claude/settings.json denies reading .env",
+        "A release process skill sits in .agents/skills and .claude/skills with disable-model-invocation: true and agents/openai.yaml allow_implicit_invocation: false, holds only the given facts (tag vX.Y.Z, Actions to Fly.io, no Friday deploys), and AGENTS.md lists it",
+        "The companion skills sit as real files in .agents/skills and .claude/skills, identical except code-review, which is only in .agents/skills; to-spec, to-tickets and triage are included; skills-lock.json lists them all",
+        "ci.yml has a code job with the uv commands and a docs job with lychee and the agent-files check; every action is pinned to a full commit SHA",
+        "LICENSE is MIT; dependabot.yml has the github-actions and uv entries, and the hand-over says to check Dependabot's first run",
+        "No ARCHITECTURE.md, no GLOSSARY.md or ADR without content, and CHANGELOG.md with an Unreleased section, since tagged releases are shipped versions",
+        "Lint, format check, type check and tests ran and passed; the hand-over reports them and the always-loaded line count",
+        "ruff, mypy and pytest are configured to skip .agents and .claude",
+        "The hand-over lists the files the release process relies on and the repo lacks (the deploy workflow, a Dockerfile, fly.toml) without writing them"
+      ]
+    },
+    {
+      "id": "typescript-webapp-new",
+      "setup": "An empty git repo with origin = https://github.com/me/dashboard.git and no commits.",
+      "prompt": "Set up a new TypeScript web app with React: an internal dashboard. Only I work on it and I don't use an issue tracker. No secrets. No license, it's private. Nothing special an agent needs to know yet. You have the go-ahead for the plan you show.",
+      "expected_output": "A Vite react-ts scaffold with its own linter kept, the cross-cutting files, CI, and the agent files without any file that would be empty: no secrets doc, no license, no process skill, no glossary.",
+      "assertions": [
+        "npm create vite ran with --template react-ts (the skill's default for a single package); the Oxlint setup it installed is kept and Biome was added as the formatter alone",
+        "No LICENSE file; no docs/secrets.md and no .env.example; no process skill; no GLOSSARY.md, docs/adr/ or CHANGELOG.md",
+        "to-spec, to-tickets and triage are not installed; docs/agents/ holds no issue-tracker.md and no triage-labels.md, and AGENTS.md has no Issue tracker section",
+        "AGENTS.md is under 100 lines, carries the precepts word for word, and its Commands section holds only commands an agent would not guess",
+        "The CI code job runs the scaffold's lint, type check and tests; the docs job runs lychee and the agent-files check",
+        "The project's lint and tests ran and passed"
+      ]
+    },
+    {
+      "id": "existing-node-with-claude-md",
+      "setup": "A Node library repo with one commit: package.json (name \"slugkit\", type module, scripts test = \"vitest run\" and codegen = \"node scripts/codegen.mjs\", devDependencies vitest and typescript), a package-lock.json, src/index.ts, src/index.test.ts, src/generated/tables.ts, scripts/codegen.mjs, README.md, LICENSE (MIT), and a hand-written CLAUDE.md of about 30 lines with: a two-paragraph project overview; 'Run npm test before every commit'; 'Never edit src/generated/ by hand, run npm run codegen'; 'Use 2-space indentation'; 'Keep functions under 20 lines'; 'Prefer small commits'. Also .cursor/rules/style.mdc repeating 'Keep functions under 20 lines'.",
+      "prompt": "Set up this existing repo for coding agents. Answers: it's a Node library; I maintain it and outside contributors send pull requests; no secrets; keep the existing license; I don't use an issue tracker. You have the go-ahead for the plan you show, including the merge of the existing agent files.",
+      "expected_output": "Nothing the user wrote is lost: CLAUDE.md is merged into AGENTS.md and becomes @AGENTS.md, the generated-code rule moves into a src/generated pair listed in the map, duplicates and the contradiction with precept 7 are reported, and package.json, the lockfile, the README and the license are untouched.",
+      "assertions": [
+        "package.json, package-lock.json, README.md and LICENSE are byte-identical to the fixture; npm init never ran",
+        "No formatter or fixer ran in write mode on the existing sources; a missing formatter or linter appears in the plan only as an optional item",
+        "CLAUDE.md holds exactly @AGENTS.md",
+        "Every rule of the old CLAUDE.md is in AGENTS.md, in src/generated/AGENTS.md, or reported as a duplicate of a line kept elsewhere",
+        "The plan reported 'Keep functions under 20 lines' as contradicting precept 7 and showed both versions",
+        "The overview paragraphs were not copied into AGENTS.md; the plan says where they went (README or dropped as an overview) and the user's go-ahead covered it",
+        "src/generated/AGENTS.md and its CLAUDE.md exist, and the AGENTS.md map lists src/generated/AGENTS.md",
+        ".cursor/rules/style.mdc was merged and removed only as part of the confirmed plan",
+        "CONTRIBUTING.md exists because outside contributors send pull requests",
+        "The project's tests ran and passed"
+      ]
+    },
+    {
+      "id": "audit-drift",
+      "setup": "The output of python-service-new, committed, then changed in a second commit: an 'Overview' section of 30 lines added to AGENTS.md (now 120 lines); tests/AGENTS.md added with its CLAUDE.md but not listed in the map; .claude/skills/tdd/SKILL.md edited so it differs from .agents/skills/tdd/SKILL.md; docs/runbook.md added and not listed in docs/README.md; SENTRY_DSN added to .env.example and not to docs/secrets.md.",
+      "prompt": "Audit this repo. Show me the report and the fixes you propose; I have not confirmed any fix yet.",
+      "expected_output": "A report of at most 30 lines naming each of the five drifts with its file and a one-line fix, the rest summarised as a count, and a proposed plan; no file changed.",
+      "assertions": [
+        "The report names AGENTS.md as over 100 lines and the Overview section as content to remove",
+        "The report names tests/AGENTS.md as missing from the map",
+        "The report names the tdd skill copies as different",
+        "The report names docs/runbook.md as missing from docs/README.md",
+        "The report names SENTRY_DSN as missing from docs/secrets.md",
+        "git status shows no change after the run"
+      ]
+    },
+    {
+      "id": "generic-java",
+      "setup": "A Maven repo with one commit: pom.xml, mvnw, .mvn/, src/main/java/com/acme/App.java, src/test/java/com/acme/AppTest.java, a .gitignore with 'target/', and origin = https://github.com/acme/billing-java.git.",
+      "prompt": "Set up this repo for coding agents. It's a Java service; build and test with ./mvnw verify. Our team of four tracks work in GitHub issues. No secrets in this repo. License: Apache-2.0. You have the go-ahead for the plan you show.",
+      "expected_output": "The generic mode: no generator, no change to the build, the cross-cutting files merged in, a CI whose code job runs ./mvnw verify, and the agent files.",
+      "assertions": [
+        "No generator ran; pom.xml, mvnw and the sources are unchanged",
+        "The existing .gitignore kept its lines and gained only missing ones from the Maven or Java template, under a # bushido-setup comment",
+        "ci.yml's code job runs ./mvnw verify; the docs job runs lychee and the agent-files check",
+        "LICENSE is Apache-2.0",
+        "AGENTS.md carries the precepts word for word and is under 100 lines"
+      ]
+    },
+    {
+      "id": "go-cli-with-release",
+      "setup": "An empty git repo with origin = https://github.com/acme/tidy.git and no commits.",
+      "prompt": "Set up a new Go command-line tool called tidy that cleans up old git branches. Only me, no issue tracker, no secrets, MIT license. Release process: I push a tag vX.Y.Z, goreleaser builds the binaries in GitHub Actions, and then I update the Homebrew formula in acme/homebrew-tap by hand. You have the go-ahead for the plan you show.",
+      "expected_output": "A go.mod with main.go at the root, golangci-lint config version 2, the cross-cutting files and CI, and a user-only release skill holding exactly the three steps the user gave.",
+      "assertions": [
+        "go mod init ran with github.com/acme/tidy; main.go sits at the root; no pkg/ folder",
+        ".golangci.yml has version: \"2\"",
+        "The release skill holds exactly the three given steps (tag push, goreleaser in Actions, Homebrew formula by hand) and nothing invented, such as changelog generation or signing",
+        "The release skill has disable-model-invocation: true and agents/openai.yaml allow_implicit_invocation: false, in both skill folders, and AGENTS.md lists it",
+        "gofmt, go vet and go test ran and passed"
+      ]
+    },
+    {
+      "id": "second-run-changes-nothing",
+      "setup": "The output of python-service-new, committed.",
+      "prompt": "Run bushido-setup on this repo.",
+      "expected_output": "The marker sends the run to the audit; every item is fine and no file changes.",
+      "assertions": [
+        "The run recognised the marker and ran the audit instead of the setup",
+        "The report says every item is fine, or names only items the run can show are real",
+        "git status shows no change after the run"
+      ]
+    }
+  ],
+  "ab_test": {
+    "question": "Do precepts written with references/writing.md get followed better, or cost fewer tokens, than the same precepts in loose prose?",
+    "base": "The output of python-service-new, committed.",
+    "variants": {
+      "A": "AGENTS.md as the skill wrote it.",
+      "B": "AGENTS.md with the Precepts block replaced by one paragraph of loose prose saying the same fifteen things."
+    },
+    "task": "In a fresh session, ask: 'Add an endpoint that refunds a payment by id, and fix the bug that lets a refund exceed the original amount.' Run it three times per variant.",
+    "measures": [
+      "Behaviour change shipped with tests in the same commit, and the bug fix started from a failing test",
+      "Commits are Conventional Commits, with the refactor committed apart from the behaviour change",
+      "Amounts stay integer cents; configuration is read through the existing config module",
+      "Docs or docs/agents updated when the behaviour they describe changed",
+      "Tokens of the root AGENTS.md (count with the agent's own tokenizer when available)"
+    ]
+  },
+  "trigger_queries": {
+    "should_trigger": [
+      "Set up this repo for coding agents",
+      "Bootstrap a new Python service with the right structure and config",
+      "Organizza questa repo prima di iniziare a scrivere codice",
+      "Audit the agent docs in this repository",
+      "Prepare this project so Claude Code and Codex can work on it on their own",
+      "Write an AGENTS.md and the docs agents need for this codebase",
+      "Start a new TypeScript library with good conventions from day one",
+      "Our repo is a mess, set up structure, CI and agent instructions",
+      "Install Matt Pocock's skills, ponytail and superpowers in this project",
+      "Check whether this repo still follows its setup rules"
+    ],
+    "should_not_trigger": [
+      "Fix this failing test",
+      "Draw an architecture diagram of the services",
+      "Write the description for this pull request",
+      "Review this diff",
+      "Add a refund endpoint to the API",
+      "Explain how dependency injection works",
+      "Rename this function everywhere",
+      "Write a release note for version 2.3",
+      "Translate the README into Italian",
+      "Set up Postgres locally with Docker"
+    ]
+  }
+}
