@@ -17,6 +17,14 @@ infrastructure minimal.
 - Add `scripts/`, `references/`, `assets/` or `evals/` only when the skill needs them, and use relative paths so each
   folder installs on its own.
 
+## Distribution
+
+- `npx skills add exdsgift/shuji-skills` finds every skill under `skills/` with no extra file, for any agent the
+  [skills CLI](https://github.com/vercel-labs/skills) supports.
+- `.claude-plugin/marketplace.json` makes this repository a Claude Code plugin marketplace named `shuji`. Each skill
+  is one plugin entry named after it, with `"source": "./"` and `"skills": ["./skills/<skill-name>"]` so only that
+  folder loads. Leave out `version`: the commit is the version, so every push is a release.
+
 A new skill starts from this shape:
 
 ```markdown
@@ -44,11 +52,14 @@ Instructions for completing the task, with an example when helpful.
 - When adding, changing, renaming or removing a skill, update the table in the root README in the same change: the
   name linked to its `SKILL.md` and one or two sentences on what it does. Keep rows sorted by name and the README
   minimal; detailed usage belongs in the skill itself.
+- In the same change, add, update or remove the skill's entry in `.claude-plugin/marketplace.json`. Never rename a
+  published entry; add a `renames` map instead, so existing installs keep working.
 - Update this file when repository conventions change. Document current behaviour, not planned features.
 
 ## Before finishing
 
 - Check changed skill metadata, relative links and README coverage.
+- When `.claude-plugin/marketplace.json` or a skill's folder changes, run `claude plugin validate .`.
 - For a new or substantially changed skill, run its evaluations, or at least a representative request, and look at
   the results.
 - Run `git diff --check` and review the changed files. Report any check that could not run. There is no

@@ -1,0 +1,16 @@
+{
+  "name": "shuji",
+  "description": "Skills for coding agents, in the Agent Skills format.",
+  "owner": {
+    "name": "exdsgift",
+    "url": "https://github.com/exdsgift"
+  },
+  "plugins": [
+    {
+      "name": "bento-diagrams",
+      "source": "./",
+      "skills": ["./skills/bento-diagrams"],
+      "description": "Draws engineering diagrams in Apple's system look as one .drawio file that follows the light and dark themes."
+    }
+  ]
+}
