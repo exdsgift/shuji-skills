@@ -12,8 +12,10 @@ infrastructure minimal.
   skill does and when to use it, with the main use case first.
 - Keep `SKILL.md` under 500 lines, with the most important rules at the top. Move details into `references/`, link
   each reference file directly from `SKILL.md`, and say when to read it.
-- Give every skill a `samples/` folder of PNGs showing what it produces, picked from reviewed evaluation results and
-  committed. `SKILL.md` points the agent at them, because an example shows the target faster than a description.
+- Give every skill a `samples/` folder showing what it produces, picked from reviewed evaluation results and
+  committed: PNGs for a skill that draws, example outputs in their own format for any other (bushido-setup keeps a
+  file tree and the `AGENTS.md` it wrote). `SKILL.md` points the agent at them, because an example shows the target
+  faster than a description.
 - Add `scripts/`, `references/`, `assets/` or `evals/` only when the skill needs them, and use relative paths so each
   folder installs on its own.
 - Keep a `CHANGELOG.md` beside `SKILL.md`. It lives in the skill's folder, not at the root, because each skill installs
