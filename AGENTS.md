@@ -55,7 +55,7 @@ Instructions for completing the task, with an example when helpful.
 
 - Update affected documentation as part of every change, without waiting for a separate request.
 - When adding, changing, renaming or removing a skill, update the table in the root README in the same change: the
-  name linked to its `README.md`, the showcase, and one or two sentences on what it does. Keep rows sorted by name and the README
+  name linked to its folder, where GitHub opens its `README.md` showcase, and one or two sentences on what it does. Keep rows sorted by name and the README
   minimal; detailed usage belongs in the skill itself.
 - In the same change, add, update or remove the skill's entry in `.claude-plugin/marketplace.json`. Never rename a
   published entry; add a `renames` map instead, so existing installs keep working.
