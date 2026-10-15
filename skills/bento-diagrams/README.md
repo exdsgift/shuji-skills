@@ -5,15 +5,16 @@
   Pictures: showcase/<name>.drawio is the source of showcase/<name>-light.svg and showcase/<name>-dark.svg. To render
   one again, run
       node scripts/render.mjs showcase/<name>.drawio --out <a temporary folder>
-  and copy <name>-light.svg and <name>-dark.svg from that folder into showcase/.
+  and copy <name>-light.svg and <name>-dark.svg from that folder into showcase/. The picture split between the two
+  themes is built from the same folder instead:
+      node showcase/split.mjs job-states <that folder>
 
-  Rows: the pictures of one row share one height. Each picture's width is 99 % times its aspect ratio (the width and
-  height of its SVG) over the sum of the row's ratios: optimizer 1.79, failover 0.47, where-it-runs 1.66, roadmap
-  2.51, cloud-topology 0.79, job-states 1.87, request-states 1.86, after-up 1.56, bucket-stores 1.11,
-  replica-states 1.88.
+  Keep the pictures few and large: the strongest five, each a different composition. A pair sits on one row at one
+  height: each picture's width is 99 % times its aspect ratio (the width and height of its SVG) over the sum of the
+  pair's ratios: failover 0.47 and cloud-topology 0.79.
 -->
 
-<h1 align="center">Bento diagrams</h1>
+<h1 align="center">🍱 Bento diagrams · 弁当</h1>
 
 <p align="center">
   <b>Engineering diagrams your coding agent draws and a script checks.</b><br>
@@ -57,46 +58,24 @@ which way to go is a decision ladder, what a thing can become is a state machine
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="showcase/failover-dark.svg">
-    <img src="showcase/failover-light.svg" width="21.8%" alt="A decision ladder: SkyPilot launches in a zone, tears down and blocks on failure, then tries the next zone, the next region or cloud, and with --retry-until-up waits 30 s and tries again.">
+    <img src="showcase/failover-light.svg" width="36.9%" alt="A decision ladder: SkyPilot launches in a zone, tears down and blocks on failure, then tries the next zone, the next region or cloud, and with --retry-until-up waits 30 s and tries again.">
   </picture>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/where-it-runs-dark.svg">
-    <img src="showcase/where-it-runs-light.svg" width="77.2%" alt="The SkyPilot CLI, SDK and dashboard on the user's machine call one API server, which passes each call through auth into long and short queues and workers, keeps its state on disk, and drives the clouds and Kubernetes clusters.">
+    <source media="(prefers-color-scheme: dark)" srcset="showcase/cloud-topology-dark.svg">
+    <img src="showcase/cloud-topology-light.svg" width="62.1%" alt="Production on AWS: Route 53 and CloudFront outside the region, a VPC with public and private subnets across two zones, EKS node groups, RDS and ElastiCache, and S3 in the region.">
   </picture>
 </p>
+
+<p align="center"><sub>A decision ladder for a failover, and nested boxes for where production runs on AWS.</sub></p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="showcase/roadmap-dark.svg">
-    <img src="showcase/roadmap-light.svg" width="75.3%" alt="A roadmap for 2027: three teams' work as bars across the months, with three milestones and a line for today in early April.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/cloud-topology-dark.svg">
-    <img src="showcase/cloud-topology-light.svg" width="23.7%" alt="Production on AWS: Route 53 and CloudFront outside the region, a VPC with public and private subnets across two zones, EKS node groups, RDS and ElastiCache, and S3 in the region.">
+    <img src="showcase/roadmap-light.svg" width="100%" alt="A roadmap for 2027: three teams' work as bars across the months, with three milestones and a line for today in early April.">
   </picture>
 </p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/job-states-dark.svg">
-    <img src="showcase/job-states-light.svg" width="49.6%" alt="The states of a SkyPilot managed job, from PENDING through STARTING and RUNNING to its endings, with recovery, cancellation and controller failure.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/request-states-dark.svg">
-    <img src="showcase/request-states-light.svg" width="49.4%" alt="An API request goes from PENDING in a queue to RUNNING in a worker, may back off as WAITING and return to a worker, and ends SUCCEEDED, FAILED or CANCELLED.">
-  </picture>
-</p>
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/after-up-dark.svg">
-    <img src="showcase/after-up-light.svg" width="57.8%" alt="Four stage columns, access, prepare, start and record, take a cluster from instances up to UP; any step that still fails ends the launch.">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="showcase/bucket-stores-dark.svg">
-    <img src="showcase/bucket-stores-light.svg" width="41.2%" alt="Ten bucket stores as pillars in two rows, each with the tool it uses to upload, mount, mount with a cache and copy, and one note.">
-  </picture>
-</p>
+<p align="center"><sub>A roadmap: bars as long as the work, milestones, and a line for today.</sub></p>
 
 <p align="center"><sub>Swimlanes · stage columns · nested containers · hub and spoke · tree · decision tree · layered stack ·
 sequence · data model · state machine · roadmap · comparison matrix · mind map · pillars · journey</sub></p>
@@ -112,9 +91,11 @@ editor, VS Code, a wiki, a slide. Light cards cast a soft shadow; dark ones cast
 product logo that would fade on one theme moves onto a chip by itself.
 
 <p align="center">
-  <img src="showcase/replica-states-light.svg" width="49.5%" alt="The life of a SkyServe replica in the light theme.">
-  <img src="showcase/replica-states-dark.svg" width="49.5%" alt="The same picture in the dark theme.">
+  <img src="showcase/job-states-split.svg" width="100%" alt="The states of a SkyPilot managed job, from PENDING through STARTING and RUNNING to its endings, with recovery, cancellation and controller failure; the left half in the light theme, the right half in the dark one.">
 </p>
+
+<p align="center"><sub>The states of a managed job: one file, its left half in the light theme and its right half in the
+dark one.</sub></p>
 
 ## Checked like code
 
