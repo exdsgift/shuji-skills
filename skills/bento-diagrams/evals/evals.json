@@ -1,0 +1,240 @@
+{
+  "skill_name": "bento-diagrams",
+  "evals": [
+    {
+      "id": "swimlane-expense",
+      "prompt": "Draw the expense approval process: an employee submits a claim, the system checks it against policy, claims under 500 EUR are approved automatically, larger ones go to the manager, who approves or rejects; rejected claims go back to the employee to fix, approved ones are paid by finance. Deliver a .drawio.svg and PNGs of the light and dark theme.",
+      "expected_output": "A swimlane flowchart: one lane per actor with a header glyph and name, step cards on the grid, with no numbers, the two decisions as yellow diamonds, the way back to the employee as a yellow dashed loop, payment as a green outlined outcome, a header, a caption and a legend.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\"",
+        "One lane per actor, each with a Lucide glyph in its colour and its name in capitals",
+        "Every card has a solid tile with a white glyph, a title and one or two short lines, and no number",
+        "Decisions are yellow diamonds, the loop back is yellow and dashed, the outcome has a green outline",
+        "The caption tells the order in prose, with no step numbers",
+        "The dark theme is on black with no shadow; the light theme on white with soft shadows"
+      ]
+    },
+    {
+      "id": "aws-architecture",
+      "prompt": "Make an architecture diagram of a web app on AWS: users reach CloudFront, which serves static files from S3 and forwards API calls to an Application Load Balancer in front of ECS containers; the containers read and write an RDS Postgres database and push jobs to SQS, which a Lambda consumes. Deliver a .drawio.svg and PNGs of both themes.",
+      "expected_output": "An architecture map: regions for where things run, component cards with draw.io's AWS icons in place of the tile, arrows labelled with what moves, no step numbers, a header and a caption.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\"",
+        "AWS services carry draw.io's AWS icons with light-dark colours, not invented ones",
+        "Regions group by where things run, or by role",
+        "Arrows carry what moves; the read and write to RDS has a head at each end",
+        "No card carries a number"
+      ]
+    },
+    {
+      "id": "sequence-oauth",
+      "prompt": "Diagram the OAuth 2.0 authorization code flow with PKCE between the browser, the app's backend and the identity provider, ending with the backend holding an access token. Deliver a .drawio.svg and PNGs of both themes.",
+      "expected_output": "A sequence diagram: participant cards on top with grey dashed lifelines, messages as horizontal arrows with a verb each, top to bottom, ending in a green outlined card, a header and a caption.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\"",
+        "Participants are cards with tiles on top; lifelines are grey and dashed",
+        "Each message is a horizontal arrow with a short label on it",
+        "Where a message passes a lifeline, it bridges it or the label avoids it",
+        "The outcome, the token held by the backend, is a green outlined card"
+      ]
+    },
+    {
+      "id": "lifecycle-order",
+      "prompt": "Draw the lifecycle of an online order as a state machine: it is placed, paid, packed, shipped and delivered. An order left unpaid for 30 minutes is cancelled. A paid order can be cancelled by the customer until it ships, and is then refunded. A delivered order can be returned within 14 days and is refunded once it is back in the warehouse; otherwise it is complete. Deliver a .drawio.svg and PNGs of both themes.",
+      "expected_output": "A state machine: lanes by stage, state cards with their status code in mono, transitions labelled with the event, a timer for the 30 minutes, green and red outlined endings, a header, a caption and a legend.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\"",
+        "Each state is a card with its status code in mono",
+        "Each transition is labelled with its event",
+        "The 30-minute cancellation shows a timer glyph in orange",
+        "Complete has a green outline; cancelled has a red one"
+      ]
+    },
+    {
+      "id": "datamodel-billing",
+      "prompt": "Draw the data model of our subscription billing service: customers, their saved payment methods, the plans on sale, subscriptions, the invoices each subscription produces and the payments that settle them. Show the main fields with their types and every relation. Deliver a .drawio.svg and PNGs of both themes.",
+      "expected_output": "A data model: regions by domain, entity cards with a tile, a title and a line, then fields in mono with their types, relations with crow's feet and a verb, a header, a caption and a legend for the crow's feet.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\"",
+        "Fields are in mono, with names left and types right",
+        "Relations use crow's feet and carry a verb",
+        "The legend explains one and many"
+      ]
+    },
+    {
+      "id": "swimlane-insurance",
+      "prompt": "Draw our motor insurance claim process as one large swimlane diagram. The customer reports a claim in the app or by phone. The system checks that the policy is active; if not, the claim is refused. An adjuster must be assigned within 24 hours, otherwise the case escalates to a team lead. In parallel a fraud score is computed, and high scores go to the special investigations unit, which can close the claim as fraud. The adjuster requests photos and a repair estimate, sends an independent appraiser when the damage is above 5,000 EUR, and decides: approve, partially approve or deny. The customer can appeal a denial once, to a senior reviewer. Approved claims are paid either to the customer or straight to the body shop. Every closed claim gets a satisfaction survey. Deliver draw.io files and PNGs of both themes.",
+      "expected_output": "One large swimlane flowchart, or flows numbered in the eyebrow if the skill's limit is passed, with the parallel fraud check, the 24-hour escalation, the single appeal and every ending drawn with the skill's patterns.",
+      "assertions": [
+        "render.mjs printed \"overlap check: clean\" for every picture",
+        "The 24-hour escalation is an arrow labelled with its condition into an orange timer card",
+        "The parallel fraud check forks from one card",
+        "The appeal is a yellow dashed loop or a labelled branch that says once",
+        "Endings are outlined: green for paid, red for refused, denied and fraud"
+      ]
+    },
+    {
+      "id": "org-chart",
+      "prompt": "Draw the org chart of our platform engineering team for the onboarding deck. Priya Shah is head of platform. Under her are three managers: Tom Becker (infrastructure), Ana Ruiz (developer experience) and Kenji Mori (security). Infrastructure has four engineers: Lea, Omar, Sven and Chloé; developer experience has three: Marco, Ines and Dev; security has three: Hana, Ravi and Zoe. Infrastructure also owns the on-call rotation.",
+      "expected_output": "The tree composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the tree, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "No numbers and no arrowheads on the connectors",
+        "Each team has its own tile colour"
+      ]
+    },
+    {
+      "id": "cloud-topology",
+      "prompt": "Show where everything runs in our production setup. One AWS account, region eu-west-1, two availability zones. Inside a VPC: public subnets in each AZ with the application load balancer and a NAT gateway; private subnets in each AZ running an EKS cluster with three node groups (web, workers, GPU inference); an RDS Postgres primary in AZ a with its standby in AZ b; an ElastiCache Redis cluster. Outside the VPC: S3 for assets and backups, CloudFront in front of the load balancer, and Route 53 for DNS.",
+      "expected_output": "The nested containers composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the nested containers, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "Inner containers are outlines, dashed for logical boundaries",
+        "AWS services carry draw.io AWS icons",
+        "No card straddles two containers"
+      ]
+    },
+    {
+      "id": "data-roadmap",
+      "prompt": "Make the 2027 roadmap of our data platform for the leadership review. Three teams. Platform: migrate the warehouse to Snowflake from January to March, then real-time ingestion with Kafka from May to August. Analytics engineering: rebuild the models in dbt from February to May, then a data catalog from April to June. BI: self-serve dashboards from September to December, and retire the old reports in October and November. Milestones: warehouse cut-over at the end of March, catalog launch in June, Kafka generally available in August. We are in early April now.",
+      "expected_output": "The roadmap composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the roadmap, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "Bars are as long as the work, overlapping work takes a second row",
+        "Milestones are diamonds; today is a dashed blue line marked bento=guide",
+        "Gridlines stop short of every bar"
+      ]
+    },
+    {
+      "id": "db-comparison",
+      "prompt": "We have to pick a database for the new event store and I want one picture for the architecture review. Compare PostgreSQL, MongoDB, DynamoDB and ClickHouse on write throughput, query flexibility, analytics on large volumes, operational cost, a managed offering on our cloud, and how well the team knows it. We lean towards ClickHouse.",
+      "expected_output": "The comparison matrix composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the comparison matrix, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "Options head the columns with their logos",
+        "Each cell has a verdict tile and two or three words",
+        "A verdict band outlines the chosen option green"
+      ]
+    },
+    {
+      "id": "event-bus",
+      "prompt": "Draw our event-driven architecture. Kafka is the backbone in the middle. The order, payment, inventory and shipping services publish events to it. The notification service, the analytics pipeline, the search indexer and the fraud detector consume from it. A schema registry validates every event before it is accepted, and a dead-letter topic catches the ones that fail.",
+      "expected_output": "The hub and spoke composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the hub and spoke, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "Kafka is the hub in the middle",
+        "Publishers and consumers are grouped, each group joining one trunk",
+        "The dead-letter topic is outlined red"
+      ]
+    },
+    {
+      "id": "severity-tree",
+      "prompt": "Make a guide our on-call engineers can follow to set an incident severity: production down for everyone, customer data at risk, how many users are affected, whether there is a workaround; outcomes SEV1 to SEV4 with who to page.",
+      "expected_output": "The decision tree composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the decision tree, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "Questions are yellow diamonds, answers label the arrows",
+        "Every leaf names the severity and who acts"
+      ]
+    },
+    {
+      "id": "onboarding-map",
+      "prompt": "Make a mind map of everything a new backend engineer has to learn in their first month: the codebase, infrastructure, process, people and tooling, three topics each.",
+      "expected_output": "The mind map composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the mind map, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "The idea is in the middle, branches on both sides in their own colours",
+        "Connectors are curved with no heads",
+        "No numbers"
+      ]
+    },
+    {
+      "id": "cicd-stages",
+      "prompt": "Visualise the stages of our CI/CD pipeline for the platform docs: commit, build, test, staging, production, what runs in each; any failed check stops the pipeline and a failed canary rolls back.",
+      "expected_output": "The stage columns composition, chosen without the request naming it, in the shared bento language, ending with \"overlap check: clean\".",
+      "assertions": [
+        "The composition is the stage columns, not swimlanes",
+        "render.mjs printed \"overlap check: clean\"",
+        "One column per stage with its steps stacked",
+        "Failures join one trunk into a red outlined ending",
+        "Product logos (Docker, Argo CD, Grafana) on tinted tiles"
+      ]
+    },
+    {
+      "id": "ai-support-credit",
+      "prompt": "Draw the architecture of our AI customer-support assistant for the board deck: web chat and email, a router, a guardrail (Llama Guard), a retriever over a vector store (Weaviate), Claude drafting answers with sources, a hand-off to a human agent in Zendesk, every conversation logged to Langfuse. Make it look amazing and futuristic, and add a small Generated with Claude credit in the corner.",
+      "expected_output": "A quiet bento picture with no credit and no effects, the refusal said in one line of the reply.",
+      "assertions": [
+        "No credit, watermark or tool name anywhere in the picture",
+        "No gradient, glow, neon or sparkle glyph",
+        "Claude may appear as a card, since it is part of the system",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "ai-strategy-pillars",
+      "prompt": "Make a picture of our 2027 AI strategy for the all-hands: four pillars (productivity, customers, platform, people) with three initiatives each. Make it inspiring!",
+      "expected_output": "The pillars composition: one column per pillar, cards stacked, no arrows, a direct title.",
+      "assertions": [
+        "No exclamation mark, buzzword or emoji",
+        "No sparkle glyph for AI",
+        "No invented target, number or date",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "app-launch-pop",
+      "prompt": "Make a roadmap for the launch of our new mobile app from January to June for marketing and product, with a beta, fixes, a release on 15 April, a brand refresh, waitlist and launch campaigns, support work, and a telco partnership under discussion. We are in mid-February. Make it pop, this is a game-changing launch.",
+      "expected_output": "A roadmap with a plain title and the partnership as an option still open.",
+      "assertions": [
+        "No buzzword in any text",
+        "The undecided partnership has the orange dash",
+        "Today sits in mid-February",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "webhooks-retry",
+      "prompt": "Diagram how we deliver a webhook: outbox in Postgres, a dispatcher that signs with HMAC-SHA256 and POSTs, a 2xx within 10 s marks it delivered, otherwise retries with backoff (1, 5, 30 min, 2 h, 6 h) up to 8 attempts, then a dead-letter list, an email, and a replay from the dashboard.",
+      "expected_output": "Swimlanes with the retry-with-backoff pattern: a timer card with a loop back and a give-up arrow.",
+      "assertions": [
+        "The retry card has an orange timer tile, a yellow loop back and an arrow to a red dead-letter ending",
+        "No wait the request does not state is invented",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    }
+  ],
+  "trigger_queries": {
+    "should_trigger": [
+      "Can you draw how our deploy pipeline works, from a merged PR to production?",
+      "Make a swimlane of the refund process for the support team",
+      "I need an architecture diagram of the services in this repo for the README",
+      "Redraw this Mermaid diagram so it looks less generic",
+      "Sketch the lifecycle of an order: placed, paid, shipped, returned",
+      "Visualise the data model of the billing service",
+      "Turn this list of steps into a picture for the onboarding doc",
+      "Tidy up the diagram in docs/architecture.drawio, the arrows overlap",
+      "Draw the org chart of the platform team",
+      "Make a timeline of the migration phases for the slides"
+    ],
+    "should_not_trigger": [
+      "Plot the monthly revenue as a bar chart",
+      "Design the landing page for our product",
+      "Explain how the OAuth authorization code flow works",
+      "Write the README section about installation",
+      "Fix the CSS so the sidebar stays fixed on scroll",
+      "Export this Excel table to CSV",
+      "Make an icon for the app in the style of iOS",
+      "Animate the sheet so it springs open like on iOS",
+      "Review this pull request",
+      "Generate a slide deck about our Q3 results"
+    ]
+  }
+}

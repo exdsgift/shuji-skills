@@ -23,3 +23,6 @@ __pycache__/
 # Agent-local settings and worktrees
 .claude/settings.local.json
 .claude/worktrees/
+
+# Evaluation output, kept here to inspect, never committed
+eval-results/
