@@ -5,6 +5,13 @@ What changed in bento-diagrams, newest first. There are no version numbers: each
 
 ## 2026-10-15
 
+### A lighter showcase
+
+- The README shows five pictures instead of ten, each large enough to read: the optimizer, a failover ladder beside
+  the AWS topology, the roadmap, and a managed job's states split between the light and the dark theme. Its title
+  carries 🍱 and 弁当.
+- `showcase/split.mjs` builds the split picture from the two themes render.mjs writes.
+
 ### After a round on SkyPilot's source
 
 Fourteen pictures of SkyPilot's internals, drawn by agents with the skill, showed where its rules left them guessing.
