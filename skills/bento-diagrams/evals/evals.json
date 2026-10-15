@@ -209,6 +209,61 @@
         "No wait the request does not state is invented",
         "render.mjs printed \"overlap check: clean\""
       ]
+    },
+    {
+      "id": "failover-ladder",
+      "prompt": "Draw how our job launcher fails over: it asks the planner for the cheapest region, launches there, and if the nodes come up the job runs. Otherwise it blocks that zone and tries the next zone in the region, then the next region; when nothing is left it gives up, unless the user passed --retry-forever, in which case it waits 30 s and asks the planner again.",
+      "expected_output": "A decision tree drawn as a ladder: questions down one column, endings to their right, loops back in one channel on the left, the endless retry with no ending of its own.",
+      "assertions": [
+        "The questions are yellow diamonds in one column, each ending to the right of its question",
+        "The loops back share one channel on the left, with stubs that join it",
+        "The retry with no limit has one way out, its loop, and its line says it never gives up",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "job-states-any",
+      "prompt": "Draw the states of a batch job in our scheduler: PENDING, STARTING, RUNNING, RECOVERING, SUCCEEDED, FAILED, FAILED_SETUP, FAILED_PRECHECKS, FAILED_CONTROLLER, CANCELLING, CANCELLED. A user can cancel from any live state, and the controller can die in any live state.",
+      "expected_output": "A compact state machine whose cancel and controller failure are each one free-standing arrow with a dot, labelled as coming from any live state.",
+      "assertions": [
+        "Each state card shows its status code in mono",
+        "Cancel and the controller failure are one arrow each, starting with a dot and saying where they come from, never one arrow per state",
+        "Endings are outlined: green for success, red for the failures",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "storage-pillars",
+      "prompt": "Show which tool each storage backend we support uses to upload a local folder, to mount a bucket on a node and to copy a bucket onto every node: S3, Google Cloud Storage, Azure Blob, Cloudflare R2, IBM COS, OCI Object Storage, Nebius, CoreWeave. Use their logos.",
+      "expected_output": "Pillars that wrap into two rows, with row labels for upload, mount and copy, product logos on tinted tiles, chips where a logo would fade.",
+      "assertions": [
+        "Past six backends the pillars wrap into a second row, and each row repeats the role labels on the left",
+        "Each role sits in the same row in every pillar; a role a backend lacks is an empty slot saying not supported",
+        "No logo disappears in either theme, and a product with no logo source gets a Lucide glyph and its name",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "planner-stages",
+      "prompt": "Draw our planner as a pipeline: it reads the task, estimates the run time (an estimator or a default of 1 hour), prices every cloud for cost or for time, solves the plan with dynamic programming or an ILP, and prints the plan. When a launch fails, the failed choice is blocked and the planner runs again; when no cloud fits, it stops with an error.",
+      "expected_output": "Stage columns where the alternatives are pills on one card, the next round loops under the columns above the failure trunk, and the failure ends in red.",
+      "assertions": [
+        "Cost or time and DP or ILP are pills on one card each, not chains of cards",
+        "The loop back runs under the columns above the failure trunk, and any crossing is bridged",
+        "Blocking the failed choice is an ordinary card that the loop leaves",
+        "render.mjs printed \"overlap check: clean\""
+      ]
+    },
+    {
+      "id": "namespace-objects",
+      "prompt": "Show every Kubernetes object our operator creates in a namespace for one app, grouped by kind: three pods, four services, an ingress and two load balancers for opened ports, a ConfigMap, three volumes and four access objects (ServiceAccount, Role, RoleBinding, ClusterRoleBinding). Say what deleting the app does to each kind.",
+      "expected_output": "A tree whose children hang in columns under each kind, with Kubernetes resource icons and each branch's fate on delete.",
+      "assertions": [
+        "Each kind's children hang in a column under it, joined by a spine on their left",
+        "Cards carry Kubernetes resource icons, and the compartments or kinds carry the grouping, not the tile colour",
+        "Each branch says what deleting the app does to it",
+        "render.mjs printed \"overlap check: clean\""
+      ]
     }
   ],
   "trigger_queries": {

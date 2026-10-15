@@ -66,16 +66,20 @@ const chrome = (argv) => {
 };
 // run a function in a page and read back what it returns, as JSON in the dumped DOM
 const inBrowser = (head, body, fn, ...fnArgs) => {
-  const dom = chrome((tmp) => {
-    const page = path.join(tmp, "page.html");
-    fs.writeFileSync(page, `<!doctype html><meta charset="utf-8">${head}<body>${body}<pre id="out"></pre><script>
+  // a browser started while several others run can exit with nothing: try three times
+  for (let n = 0; n < 3; n++) {
+    const dom = chrome((tmp) => {
+      const page = path.join(tmp, "page.html");
+      fs.writeFileSync(page, `<!doctype html><meta charset="utf-8">${head}<body>${body}<pre id="out"></pre><script>
 (${fn})(...${JSON.stringify(fnArgs).replace(/</g, "\\u003c")}).then((r) => { document.getElementById("out").textContent =
   "@@" + btoa(unescape(encodeURIComponent(JSON.stringify(r)))) + "@@"; });
 </script>`);
-    return ["--virtual-time-budget=10000", "--dump-dom", pathToFileURL(page).href];
-  });
-  const found = dom.match(/@@([^@]+)@@/);
-  return found ? JSON.parse(Buffer.from(found[1], "base64").toString("utf8")) : null;
+      return ["--virtual-time-budget=10000", "--dump-dom", pathToFileURL(page).href];
+    });
+    const found = dom.match(/@@([^@]+)@@/);
+    if (found) return JSON.parse(Buffer.from(found[1], "base64").toString("utf8"));
+  }
+  return null;
 };
 const fontFaces = (families) => families.map(([family, stem]) => [400, 600].map((w) =>
   `@font-face{font-family:"${family}";font-weight:${w};src:url(data:font/woff2;base64,`
@@ -114,6 +118,26 @@ const pages = [...file.matchAll(/<diagram\b([^>]*)>([\s\S]*?)<\/diagram>/g)].map
 });
 if (!pages.length) { console.error(`${input}: no <diagram> page in it`); process.exit(2); }
 const cellsOf = (xml) => [...tags(xml, "mxCell")].map((t) => ({ ...t, a: attrsOf(t.text) }));
+// every vertex's box in page coordinates, from one pass over the cells and their geometries; a child's geometry is
+// relative to its parent vertex
+const geometries = (xml) => {
+  const cells = cellsOf(xml), rel = {}, abs = {};
+  let i = 0;
+  for (const g of tags(xml, "mxGeometry")) {
+    while (i + 1 < cells.length && cells[i + 1].start < g.start) i++;
+    const c = cells[i];
+    if (!c || c.start > g.start || c.text.endsWith("/>") || c.a.vertex !== "1" || rel[c.a.id]) continue;
+    const a = attrsOf(g.text);
+    rel[c.a.id] = { x: Number(a.x) || 0, y: Number(a.y) || 0, w: Number(a.width) || 0, h: Number(a.height) || 0, parent: c.a.parent };
+  }
+  const at = (id, depth = 0) => {
+    if (abs[id] || !rel[id]) return abs[id];
+    const r = rel[id], up = depth < 50 && at(r.parent, depth + 1);
+    return (abs[id] = { x: r.x + (up ? up.x : 0), y: r.y + (up ? up.y : 0), w: r.w, h: r.h });
+  };
+  Object.keys(rel).forEach((id) => at(id));
+  return abs;
+};
 
 // 2. Lint the model: the two slips that cost most, and a credit hidden where no text cell shows it.
 const problems = [];
@@ -170,12 +194,68 @@ if (labels.length) {
     sized++;
   });
 }
+// A logo on a tinted tile must stay visible in both themes. Its colours are measured against the tile as each theme
+// draws it (the brand tint over the white or the dark card). When every colour falls under 3:1 on the dark tile, the
+// contrast a graphic needs, the tile becomes a light chip in the dark theme; under 2:1 on the light tile, a dark chip
+// in the light theme (a saturated red at 2.9:1 on its pale tint still reads by its hue; a yellow at 1.4:1 does not).
+// A mark with most but not all of its colours under those is left alone and named, so the eye decides.
+const rgb = (c) => {
+  const named = { black: "#000000", white: "#FFFFFF" }[String(c).toLowerCase()];
+  const m = (named || c).match(/^#([0-9a-f]{6}|[0-9a-f]{3})\b/i) || [];
+  if (m[1]) return (m[1].length === 3 ? [...m[1]].map((h) => h + h) : m[1].match(/../g)).map((h) => parseInt(h, 16));
+  const r = String(c).match(/rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+  return r ? r.slice(1, 4).map(Number) : null;
+};
+const luminance = (c) => c.map((v) => v / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const mix = (base, top, k) => base.map((v, i) => Math.round(v + k * (top[i] - v)));
+const hexOf = (c) => "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+const pairOf = (v) => { const m = (v || "").match(/light-dark\(([^,]+),([^)]+)\)/); return m ? [rgb(m[1].trim()), rgb(m[2].trim())] : [rgb(v || ""), rgb(v || "")]; };
+const markColours = (style) => {
+  const data = (style.match(/image=data:image\/svg\+xml,([^;]+)/) || [])[1];
+  if (!data) return /shape=mxgraph\./.test(style) ? [pairOf(styleValue(style, "fillColor"))[1]].filter(Boolean) : [];
+  const svg = /^(<|%3C)/i.test(data) ? decodeURIComponent(data) : Buffer.from(data, "base64").toString("utf8");
+  const found = [...svg.matchAll(/(?:fill|stroke|stop-color)\s*[=:]\s*["']?\s*(#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|black|white)/gi)].map((m) => rgb(m[1]));
+  // a shape with no fill of its own is drawn black when nothing above it sets one
+  if (!/<svg[^>]*\sfill=/i.test(svg) && /<(path|circle|rect|polygon|ellipse)\b(?![^>]*\sfill=)[^>]*>/i.test(svg)) found.push([0, 0, 0]);
+  return found.filter(Boolean);
+};
+let chips = 0;
+const pale = [];
+for (const p of pages) {
+  const geo = geometries(p.inner), cells = cellsOf(p.inner).filter((c) => c.a.vertex === "1" && geo[c.a.id]);
+  for (const mark of cells) {
+    const style = unescapeXml(mark.a.style || "");
+    if (!/shape=image|shape=mxgraph\.gcp2\.kubernetes_logo/.test(style)) continue;
+    const colours = markColours(style), g = geo[mark.a.id];
+    if (!colours.length) continue;
+    // the tile is the smallest tinted cell under the mark, no bigger than a tile
+    const tile = cells.filter((c) => c !== mark && geo[c.a.id].w <= 48 && geo[c.a.id].h <= 48 && /(^|;)fillOpacity=/.test(c.a.style || "")
+      && geo[c.a.id].x <= g.x + 1 && geo[c.a.id].y <= g.y + 1 && geo[c.a.id].x + geo[c.a.id].w >= g.x + g.w - 1 && geo[c.a.id].y + geo[c.a.id].h >= g.y + g.h - 1)
+      .sort((a, b) => geo[a.a.id].w * geo[a.a.id].h - geo[b.a.id].w * geo[b.a.id].h)[0];
+    if (!tile || p.edits.some((e) => e.start === tile.start)) continue;
+    const ts = tile.a.style, k = (Number(styleValue(ts, "fillOpacity")) || 100) / 100, [L, D] = pairOf(styleValue(ts, "fillColor"));
+    if (!L || !D || k >= 1) continue;
+    const onLight = mix([255, 255, 255], L, k), onDark = mix([44, 44, 46], D, k);
+    const dim = (bg, min) => colours.filter((c) => contrast(c, bg) < min).length;
+    let fill = null;
+    if (dim(onDark, 3) === colours.length) fill = `light-dark(${hexOf(onLight)},#D1D1D6)`;
+    else if (dim(onLight, 2) === colours.length) fill = `light-dark(#2C2C2E,${hexOf(onDark)})`;
+    // one pale colour among several (Google Cloud's yellow) still reads; most of the mark fading does not
+    else if (2 * dim(onDark, 3) > colours.length || 2 * dim(onLight, 2) > colours.length) pale.push(mark.a.id);
+    if (!fill) continue;
+    p.edits.push({ start: tile.start, end: tile.end, text: setAttr(tile.text, "style", withStyle(ts, "fillColor", fill).replace(/(^|;)fillOpacity=[^;]*/, "")) });
+    chips++;
+  }
+}
+if (pale.length) console.warn(`warning: part of the logo in ${pale.join(", ")} fades on its tile in one theme; look at it with --zoom ${pale.join(",")}`);
 if (pages.some((p) => p.edits.length)) {
   for (const p of pages) for (const e of p.edits.sort((a, b) => b.start - a.start)) p.inner = p.inner.slice(0, e.start) + e.text + p.inner.slice(e.end);
   // a compressed page is written back uncompressed, which draw.io reads the same
   for (const p of [...pages].reverse()) if (p.edits.length) file = file.slice(0, p.start) + `<diagram${p.head}>${p.inner}</diagram>` + file.slice(p.end);
   fs.writeFileSync(input, file);
-  console.log(`model: ${sized} label backgrounds sized, ${shadows} shadows softened, ${input} updated`);
+  console.log(`model: ${sized} label backgrounds sized, ${shadows} shadows softened, ${chips} logo tiles made chips, ${input} updated`);
 }
 
 // 4. The check, run in the page with the picture inlined as draw.io exported it.
@@ -205,15 +285,31 @@ async function checkPage(meta, zoom, rules) {
       }
       return pts;
     };
-    const texts = [], shapes = [], edges = [];
+    // where the model's coordinates land in the picture: the shift most cells with a drawn box agree on
+    const shifts = {};
+    for (const g of svg.querySelectorAll("g[data-cell-id]")) {
+      const m = meta[g.dataset.cellId], el = g.querySelector("rect");
+      if (!m || !m.geo || !el) continue;
+      const b = box(el);
+      if (Math.abs(b.w - m.geo.w) < 0.5 && Math.abs(b.h - m.geo.h) < 0.5) {
+        const k = Math.round(b.x - m.geo.x) + "," + Math.round(b.y - m.geo.y);
+        shifts[k] = (shifts[k] || 0) + 1;
+      }
+    }
+    const shift = Object.entries(shifts).sort((a, b) => b[1] - a[1])[0];
+    const [dx, dy] = shift ? shift[0].split(",").map(Number) : [];
+    const texts = [], shapes = [], edges = [], marks = [];
     for (const g of svg.querySelectorAll("g[data-cell-id]")) {
       const id = g.dataset.cellId, m = meta[id];
       if (!m) continue;
       const ts = [...g.querySelectorAll("text")].filter((t) => t.closest("g[data-cell-id]") === g && t.textContent.trim());
       if (ts.length) {
+        // a text cell with pointerEvents=0 draws no box: measure it against the model's geometry instead
         const own = g.querySelector("rect, path, ellipse");
-        texts.push({ id, m, b: union(ts.map(box)), words: ts.map((t) => t.textContent.trim()).join(" "), cell: m.edge || !own ? null : box(own) });
+        const cell = m.edge ? null : own ? box(own) : m.geo && shift ? { x: m.geo.x + dx, y: m.geo.y + dy, w: m.geo.w, h: m.geo.h } : null;
+        texts.push({ id, m, b: union(ts.map(box)), lines: ts.map(box), words: ts.map((t) => t.textContent.trim()).join(" "), cell });
       }
+      if (/shape=image/.test(m.style)) marks.push(box(g));
       const guide = /(^|;)bento=guide/.test(m.style);
       if (m.edge) {
         const pts = [], lines = [];
@@ -233,7 +329,8 @@ async function checkPage(meta, zoom, rules) {
           const pts = [], n = Math.max(1, Math.ceil(Math.max(b.w, b.h) / 2));
           for (let i = 0; i <= n; i++) pts.push(b.w >= b.h ? { x: b.x + (b.w * i) / n, y: b.y + b.h / 2 } : { x: b.x + b.w / 2, y: b.y + (b.h * i) / n });
           edges.push({ id, m, pts, lines: [], guide: true, bridged: true });
-        } else shapes.push({ id, m, b, diamond: /rhombus/.test(m.style) });
+        } else shapes.push({ id, m, b, diamond: /rhombus/.test(m.style),
+          seen: (el.getAttribute("fill") || "") !== "none" || (el.getAttribute("stroke") || "none") !== "none" });
       }
     }
     const vb = svg.viewBox.baseVal, area = vb.width * vb.height;
@@ -305,13 +402,75 @@ async function checkPage(meta, zoom, rules) {
       const under = Math.max(t.cell.y - t.b.y, t.b.y + t.b.h - t.cell.y - t.cell.h);
       if (under > 3) out.push(quote(t) + " is taller than its box by " + Math.ceil(under) + " px");
     }
-    // a zoom names a cell by its id, or by words it shows
-    const cells = [...svg.querySelectorAll("g[data-cell-id]")].filter((c) => meta[c.dataset.cellId]);
+    // a diamond's words must clear its slanted sides, not only its bounding box; a line's box is trimmed to the
+    // letters, since a text box includes the space above and below them
+    for (const s of shapes) if (s.diamond) for (const t of texts) {
+      if (t.id !== s.id && !inside(t.b, s.b)) continue;
+      const cx = s.b.x + s.b.w / 2, cy = s.b.y + s.b.h / 2, rx = s.b.w / 2 - 1, ry = s.b.h / 2 - 1;
+      const past = t.lines.some((l) => [l.x, l.x + l.w].some((x) => [l.y + l.h * 0.15, l.y + l.h * 0.85]
+        .some((y) => Math.abs(x - cx) / rx + Math.abs(y - cy) / ry > 1)));
+      if (past) out.push(quote(t) + " runs past the slanted sides of its diamond: shorten the lines or split them (about 10 characters a line in 120 x 80)");
+    }
+    // near misses read as crowding: words 6 px apart on one row (a legend keeps 8 between cells, about 7 between the
+    // letters), a line 12 px from words it neither carries nor enters
+    texts.forEach((a, i) => texts.slice(i + 1).forEach((b) => {
+      const row = Math.min(a.b.y + a.b.h, b.b.y + b.b.h) - Math.max(a.b.y, b.b.y);
+      const gap = Math.max(b.b.x - a.b.x - a.b.w, a.b.x - b.b.x - b.b.w);
+      if (row > 0.5 * Math.min(a.b.h, b.b.h) && gap >= 0 && gap < 6)
+        out.push(quote(a) + " and " + quote(b) + " are " + Math.round(gap) + " px apart: keep 6 px between words on a row");
+    }));
+    const dist = (p, b) => Math.hypot(Math.max(b.x - p.x, 0, p.x - b.x - b.w), Math.max(b.y - p.y, 0, p.y - b.y - b.h));
+    const holds = (id, t) => { const s = shapes.find((s) => s.id === id); return s && inside(t.b, grow(s.b, 1)); };
+    // a legend's sample is a short free line 8 px before its words, by design
+    const sample = (e) => !e.m.source && !e.m.target && e.pts.length && (({ w, h }) => Math.max(w, h) <= 48)(union(e.pts.map((p) => ({ x: p.x, y: p.y, w: 0, h: 0 }))));
+    for (const e of edges) if (!e.guide && !sample(e)) for (const t of texts) {
+      const owner = edges.find((o) => o.id === t.id);
+      if (owner === e || holds(e.m.source, t) || holds(e.m.target, t)) continue;
+      const close = e.pts.filter((p) => dist(p, t.b) < 12);
+      // a line through the words is reported above; one sharing the stretch of the words' own line is that line
+      if (!close.length || close.some((p) => dist(p, t.b) <= 1.5)) continue;
+      if (owner && close.every((p) => owner.pts.some((q) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y) < 2))) continue;
+      out.push("a line (" + e.id + ") passes " + Math.round(Math.min(...close.map((p) => dist(p, t.b)))) + " px from " + quote(t) + ": keep 12 px, or route it on the other side");
+    }
+    // the page keeps even margins: a cell wider than its words, or a background sized from one, widens it silently
+    const page = shapes.find((s) => s.b.w * s.b.h > 0.6 * area);
+    const P = page ? page.b : grow({ x: vb.x, y: vb.y, w: vb.width, h: vb.height }, -rules.pad);
+    const C = union([...texts.map((t) => t.b), ...shapes.filter((s) => s !== page && s.seen).map((s) => s.b), ...marks,
+      ...edges.flatMap((e) => e.pts.map((p) => ({ x: p.x, y: p.y, w: 0, h: 0 })))]);
+    for (const [near, far, a, b] of [["left", "right", C.x - P.x, P.x + P.w - C.x - C.w], ["top", "bottom", C.y - P.y, P.y + P.h - C.y - C.h]]) {
+      if (Math.abs(a - b) <= 24) continue;
+      const [big, small, side] = a > b ? [a, b, near] : [b, a, far];
+      const reach = (t) => side === "right" ? t.cell.x + t.cell.w - C.x - C.w : side === "left" ? C.x - t.cell.x : side === "bottom" ? t.cell.y + t.cell.h - C.y - C.h : C.y - t.cell.y;
+      const wide = texts.filter((t) => t.cell && reach(t) > 8).sort((p, q) => reach(q) - reach(p))[0];
+      out.push("the page has " + Math.round(big) + " px of empty space on the " + side + " and " + Math.round(small) + " on the opposite side: "
+        + (wide ? "the cell of " + quote(wide) + " reaches past its words; make it as wide as they are" : "resize the background to the picture"));
+    }
+    // cards spread apart to line up with a neighbouring box leave a hole that reads as something missing: two cards of
+    // one box, one above the other, with a gap taller than a card and nothing in it, no words, no line
+    for (const box of shapes) {
+      if (box === page || !box.seen) continue;
+      const kids = shapes.filter((o) => o !== box && o.seen && inside(o.b, box.b)
+        && !shapes.some((m) => m !== box && m !== o && m.seen && inside(o.b, m.b) && inside(m.b, box.b)));
+      for (const a of kids) for (const b of kids) {
+        const left = Math.max(a.b.x, b.b.x), right = Math.min(a.b.x + a.b.w, b.b.x + b.b.w), gap = b.b.y - a.b.y - a.b.h;
+        if (a === b || right - left < 0.5 * Math.min(a.b.w, b.b.w) || gap <= Math.max(a.b.h, b.b.h) + 24) continue;
+        const hole = { x: left, y: a.b.y + a.b.h, w: right - left, h: gap };
+        const within = (p) => p.x > hole.x && p.x < hole.x + hole.w && p.y > hole.y && p.y < hole.y + hole.h;
+        if (kids.some((k) => hit(k.b, hole)) || texts.some((t) => hit(t.b, hole)) || edges.some((e) => e.pts.some(within))) continue;
+        out.push(name(box.id) + " has an empty gap of " + Math.round(gap) + " px between " + name(a.id) + " and " + name(b.id)
+          + ": stack its cards from the top and let the box end under its last");
+      }
+    }
+    // a zoom names a cell by its id, or by words it shows; words frame the card that holds them, tile and all
     const zooms = zoom.map((z) => {
-      const g = svg.querySelector('g[data-cell-id="' + CSS.escape(z) + '"]')
-        || cells.find((c) => [...c.querySelectorAll("text")].some((t) => t.textContent.includes(z)));
-      if (!g) return null;
-      const b = box(g);
+      const g = svg.querySelector('g[data-cell-id="' + CSS.escape(z) + '"]');
+      let b = g && box(g);
+      if (!g) {
+        const t = texts.find((t) => t.words === z) || texts.find((t) => t.words.includes(z));
+        if (!t) return null;
+        const card = t.m.edge ? null : shapes.filter((s) => s !== page && inside(t.b, s.b)).sort((p, q) => p.b.w * p.b.h - q.b.w * q.b.h)[0];
+        b = card ? card.b : t.b;
+      }
       return { id: z, x: b.x - vb.x - 40, y: b.y - vb.y - 40, w: b.w + 80, h: b.h + 80 };
     });
     return { problems: [...new Set(out)], zooms };
@@ -358,12 +517,21 @@ pages.forEach((p, i) => {
     for (const q of [family, `'${family}'`]) svg = svg.split(`font-family="${q}"`).join(`font-family="${q}, ${fallback}"`);
   if (/<foreignObject/.test(svg)) console.warn(`${label}warning: HTML labels, which some viewers will not show (use html=0)`);
   fs.writeFileSync(svgFile, svg);
+  // one picture per theme, every light-dark() pair resolved, for a page that picks the theme itself (a README's
+  // <picture>): an <img> would otherwise follow the operating system, not the page
+  const colour = String.raw`((?:rgba?\([^)]*\)|[^,()])+?)`;
+  for (const [theme, k] of [["light", 1], ["dark", 2]]) {
+    const one = svg.replace(new RegExp(String.raw`light-dark\(\s*${colour}\s*,\s*${colour}\s*\)`, "g"), (...m) => m[k])
+      .replace(/color-scheme:\s*light dark/, `color-scheme: ${theme}`);
+    fs.writeFileSync(path.join(outDir, `${name}${suffix}-${theme}.svg`), one);
+  }
 
   const meta = {};
+  p.geo = geometries(p.inner);
   for (const c of cellsOf(p.inner)) if (c.a.vertex === "1" || c.a.edge === "1")
-    meta[c.a.id] = { edge: c.a.edge === "1", source: c.a.source, target: c.a.target, style: unescapeXml(c.a.style || "") };
+    meta[c.a.id] = { edge: c.a.edge === "1", source: c.a.source, target: c.a.target, style: unescapeXml(c.a.style || ""), geo: p.geo[c.a.id] };
   const body = svg.slice(svg.indexOf("<svg"));
-  const result = inBrowser("", body, checkPage, meta, zoom, { credit: CREDIT, slop: SLOP });
+  const result = inBrowser("", body, checkPage, meta, zoom, { credit: CREDIT, slop: SLOP, pad });
   const issues = !result ? ["the overlap check could not run (no output from the browser)"]
     : result.error ? [`the overlap check failed in the browser: ${result.error}`] : result.problems;
 
@@ -373,13 +541,16 @@ pages.forEach((p, i) => {
   const [w, h] = [size("width"), size("height")];
   const shot = (png, css, factor, width, height) => {
     fs.rmSync(png, { force: true });
-    chrome((tmp) => {
-      const page = path.join(tmp, "shot.html");
-      fs.writeFileSync(page, `<!doctype html><meta charset="utf-8"><style>${css}</style>${body}`);
-      return [`--force-device-scale-factor=${factor}`, `--window-size=${width},${height}`, `--screenshot=${png}`, pathToFileURL(page).href];
-    });
-    // Edge can return before the file is written
-    for (let k = 0; k < 40 && !fs.existsSync(png); k++) sleep(500);
+    // a browser started while several others run can exit without a screenshot: try three times
+    for (let n = 0; n < 3 && !fs.existsSync(png); n++) {
+      chrome((tmp) => {
+        const page = path.join(tmp, "shot.html");
+        fs.writeFileSync(page, `<!doctype html><meta charset="utf-8"><style>${css}</style>${body}`);
+        return [`--force-device-scale-factor=${factor}`, `--window-size=${width},${height}`, `--screenshot=${png}`, pathToFileURL(page).href];
+      });
+      // Edge can return before the file is written
+      for (let k = 0; k < 20 && !fs.existsSync(png); k++) sleep(500);
+    }
     return fs.existsSync(png);
   };
   const themeCss = (theme, extra = "") => `body{margin:0;overflow:hidden;color-scheme:${theme};background:light-dark(#FFFFFF,#000000)}`

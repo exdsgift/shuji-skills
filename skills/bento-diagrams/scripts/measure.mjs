@@ -1,6 +1,6 @@
 // Print the width in px of each text as the picture draws it, to size a cell before placing it.
 //
-//   node measure.mjs [--size 13] [--bold] [--mono] "a step" "the release is done" ...
+//   node measure.mjs [--size 13] [--bold] [--mono] [--] "a step" "the release is done" ...
 //
 // Uses the fonts in ../assets/fonts and Chrome or Edge, like render.mjs; set CHROME when it is somewhere unusual.
 import fs from "node:fs";
@@ -17,14 +17,16 @@ const CHROME = process.env.CHROME || [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].find((p) => fs.existsSync(p)) || "google-chrome";
 
-const args = process.argv.slice(2);
+// a bare "--" ends the options, so words that start with "--" (a flag, a port name) can be measured after it
+const all = process.argv.slice(2), end = all.indexOf("--");
+const args = end >= 0 ? all.slice(0, end) : all;
 const at = args.indexOf("--size");
 const size = at >= 0 ? Number(args[at + 1]) || 13 : 13;
 const weight = args.includes("--bold") ? 600 : 400;
 const stem = args.includes("--mono") ? "ibm-plex-mono" : "instrument-sans";
-const texts = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--size");
+const texts = [...args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--size"), ...(end >= 0 ? all.slice(end + 1) : [])];
 if (!texts.length) {
-  console.error('usage: node measure.mjs [--size 13] [--bold] [--mono] "text" ...');
+  console.error('usage: node measure.mjs [--size 13] [--bold] [--mono] [--] "text" ...');
   process.exit(2);
 }
 
