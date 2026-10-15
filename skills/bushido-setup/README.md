@@ -223,7 +223,10 @@ docs; [choosealicense.com](https://choosealicense.com/); [lychee](https://github
 [mattpocock/skills](https://github.com/mattpocock/skills), [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail),
 [obra/superpowers](https://github.com/obra/superpowers) and the [skills CLI](https://github.com/vercel-labs/skills).
 
-## Credits
+## License and credits
+
+The skill is under the [MIT license](LICENSE). What it writes into your repository, the precepts included, is yours to
+use with no notice needed.
 
 The `docs/agents/` templates in [assets/docs-agents/](assets/docs-agents/) come from Matt Pocock's
 `setup-matt-pocock-skills`, under the MIT license (Copyright (c) 2026 Matt Pocock; the notice is in

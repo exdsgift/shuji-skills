@@ -32,3 +32,10 @@ skill runs as `/bento-diagrams:bento-diagrams`.
 
 Or copy a skill's folder into your agent's skills directory: `~/.claude/skills/` for Claude Code, `~/.agents/skills/`
 for Codex.
+
+## License
+
+[MIT](LICENSE), © 2026 Gabriele Durante. Each skill carries a copy of the license in its folder, since it installs on
+its own. What the skills write into your repository, such as a diagram or an `AGENTS.md`, is yours to use with no
+notice needed. Parts by others keep their own license, named beside them: the fonts in bento-diagrams (SIL Open Font
+License) and the templates bushido-setup takes from Matt Pocock's skills (MIT).

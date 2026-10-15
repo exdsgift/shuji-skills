@@ -5,6 +5,10 @@ What changed in bushido-setup, newest first. There are no version numbers: each 
 
 ## 2026-10-15
 
+### License
+
+- The skill is under the MIT license, with a copy in its folder. What it writes into your repository is yours.
+
 ### First version
 
 - Sets up a new or existing repo for coding agents: the stack's official generator for Python, TypeScript, Go and

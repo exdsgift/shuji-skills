@@ -5,6 +5,10 @@ What changed in bento-diagrams, newest first. There are no version numbers: each
 
 ## 2026-10-15
 
+### License
+
+- The skill is under the MIT license, with a copy in its folder. The diagrams you draw with it are yours.
+
 ### A lighter showcase
 
 - The README shows five pictures instead of ten, each large enough to read: the optimizer, a failover ladder beside

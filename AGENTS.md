@@ -20,6 +20,8 @@ infrastructure minimal.
   folder installs on its own.
 - Keep a `CHANGELOG.md` beside `SKILL.md`. It lives in the skill's folder, not at the root, because each skill installs
   on its own and its changelog travels with it.
+- Put a copy of the root `LICENSE` (MIT) beside `SKILL.md`, for the same reason. A file taken from someone else keeps
+  its own license notice next to it, and the skill's README names it.
 - Give every skill a `README.md` beside `SKILL.md`: the showcase GitHub shows under the skill's folder, written for the
   people deciding whether to use it, with its strongest pictures in `showcase/`. `SKILL.md` never points at it, so an
   agent running the skill does not read it.
