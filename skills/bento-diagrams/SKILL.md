@@ -11,9 +11,10 @@ and a few coloured outlines say how a path ends. The look is Apple's system UI, 
 composition changes with the question: a swimlane for who does what, a tree for who reports to whom, nested boxes for
 where things run, a timeline for when.
 
-The target is in [samples/](samples/): one PNG per composition in the dark theme, named after it, with the swimlanes
-and the roadmap also in the light theme; a name ending in `-compact` shows the compact density. Look at the one
-closest to the request before you start. Every rule below gives its reason, so you can judge the cases it does not
+The target is in [samples/](samples/): reviewed pictures, most named after their composition (`-compact` marks the
+compact density, `-light` the light theme, the rest are dark), and three from a large real system: a decision ladder
+(`provisioning-failover`), a tree with hanging columns (`skypilot-cluster-on-kubernetes`) and a data model
+(`skypilot-state-model`). Look at the one closest to the request before you start. Every rule below gives its reason, so you can judge the cases it does not
 cover.
 
 ## The language every composition shares
@@ -29,8 +30,9 @@ cover.
   lines. Cards carry no numbers: the arrows and the reading direction give the order, and the caption tells it in
   prose. Cards in one picture share one size.
 - An outline is the only place colour marks a card: green for an outcome, red for a stop, a grey dash for a step that
-  is a flow of its own, an orange dash for an option still open or an optional part, blue for work in progress. A decision is a diamond
-  with a yellow outline.
+  is a flow of its own, an orange dash for an option still open or an optional part, blue for work in progress. An
+  ending's tile may repeat its outline's colour (a red tile on a stop), one way for every ending in a picture. A
+  decision is a diamond with a yellow outline.
 - Arrows are grey, 2 px, orthogonal with rounded corners and a small solid head; one that goes back to an earlier
   step is yellow and dashed. A label sits on its arrow with the compartment's colour behind it, so the line breaks
   around the words.
@@ -107,7 +109,10 @@ loop, a flow of its own), so do not give them to a compartment. A card whose wor
 colour of its function: teal for data that moves, indigo for compute, pink for a screen or media. Never use colour
 only to decorate. That leaves six colours for compartments (blue, orange, purple, indigo, teal, pink): with more
 groups than that, group them further, or let groups of one kind share a colour and say so in the legend. A series of
-pictures keeps one colour per actor, place or stage name throughout.
+pictures keeps one colour per actor, place or stage name throughout. With no compartments, colour follows the kind of
+step, one colour per kind named in the legend, or blue for every tile when there is one kind. When every card carries
+a product's icon, the icons carry no group colour and the compartments' glyphs and names carry the grouping. A timer's
+orange tile clashes with an orange compartment: give that compartment another colour.
 
 Cards cast a soft shadow: black at 8 %, 4 px down, blurred over 10 px. It reads on the white page and all but vanishes on
 the black one, so a dark card never glows and stands out by its fill.
@@ -133,7 +138,8 @@ The picture must read as made by a careful engineer, never as generated.
 - The visuals stay flat and quiet: no gradients, glows, neon, glassy or 3D effects, drop shadows in the dark theme,
   rainbow palettes or decorative icons. Never use sparkles, magic wands or stars to mean "AI": a model gets the
   glyph of what it does (a chat bubble, a brain, a bot) or its product's logo.
-- No invented precision: a number, a version, a size or a date appears only when the source states it. When the
+- No invented precision: a number, a version, a size or a date appears only when the source states it, and "no
+  limit" only when the source shows a loop with no cap. When the
   source contradicts itself (five waits for eight attempts), draw what it states and point out the gap in your reply. An ending or
   a step that follows plainly from what the source says may be drawn; a claim, a target or a relation it does not
   make may not.
@@ -151,10 +157,12 @@ The picture must read as made by a careful engineer, never as generated.
   stroke and round ends, close to SF Symbols. On a tile the glyph is white; beside a compartment's name it is drawn in
   the compartment's colour. Never mix a second glyph family into the same picture.
 - A product keeps its own logo, on a tile tinted with its brand colour at 13 % instead of a solid one, because a logo
-  cannot turn white. Look in draw.io's own libraries for cloud services and Kubernetes, then LobeHub for AI brands
-  (https://icons.lobehub.com/), then Simple Icons for any other (https://simpleicons.org/). A black or navy mark sits on
-  a light chip in the dark theme, or it disappears. When no source has the logo, the card takes the Lucide glyph of
-  its function and names the product in its title.
+  cannot turn white. Look in draw.io's own libraries for cloud services and Kubernetes, then LobeHub for AI brands and
+  the cloud companies (https://icons.lobehub.com/), then Simple Icons for any other (https://simpleicons.org/). When
+  no source has the logo, the card takes the Lucide glyph of its function and names the product in its title.
+- Always draw the tile tinted: render.mjs measures each logo against it in both themes and turns it into a chip when
+  the mark would fade, a light chip under a black or navy mark in the dark theme, a dark one under a yellow mark in
+  the light theme.
 - [scripts/icon.mjs](scripts/icon.mjs) fetches any of these and prints the draw.io style with the SVG embedded and
   recoloured.
 
@@ -171,7 +179,20 @@ The marks remain their owners' trademarks: use each one to name its product and 
 - A timer or an escalation is an arrow labelled with its condition ("after 24 h") into a card with an orange tile and
   a clock, timer or hourglass glyph.
 - A retry with backoff is that timer card with two ways out: a yellow dashed loop back to the step it repeats, and an
-  arrow labelled with the limit ("after attempt 8 fails") to the red ending that gives up.
+  arrow labelled with the limit ("after attempt 8 fails") to the red ending that gives up. A retry with no limit has
+  one way out, the loop, and its line says so ("every 30 s, no limit").
+- A step that picks one of several alternatives (cost or time) is one card whose line is a row of grey pills, one per
+  alternative, never a chain of cards that reads as more steps.
+- An event that can happen in any state (a cancel) is one arrow that starts with a dot on the edge of the band and
+  says so in its label ("cancel, from any running state"), never one arrow per state.
+- A failure in swimlanes is a red ending in the band of the actor who stops the flow, in the first free column after
+  the step that fails, however far along. A part that runs inside another actor's process is an outline box inside
+  that actor's band, not a band of its own.
+- A loop back runs along the top of the band it returns to, never through bands it does not touch.
+- Boxes side by side take their own heights, and their cards stack from the top: a hole inside a box reads as
+  something missing.
+- A side step that leads back into the flow (block the failed choice, then try again) is an ordinary card, and the
+  loop leaves it.
 - A decision sits in the band of the actor whose answer decides it (the customer's endpoint answers, so "2xx within
   10 s?" sits in the customer's band); its answers then rise or fall into the bands that act on them.
 - A step that is a flow of its own is a grey dashed card whose line names that flow ("replays: flow 3"); an option
@@ -187,8 +208,12 @@ The marks remain their owners' trademarks: use each one to name its product and 
 1. Fix the one question the picture answers and who reads it, and choose the composition. List the pieces, then cut:
    a piece the question does not need goes, and two pieces that always travel together become one card. A flow past
    about fourteen steps (endings included) splits into pictures, one question each, and the eyebrow numbers them
-   ("FLOW 2 OF 5"). A map, a tree, a matrix or a pipeline whose stages a reader wants side by side may hold more,
-   as long as every card keeps its size and nothing crowds.
+   ("FLOW 2 OF 5"). The pictures of a split flow share one density, the one the largest needs, and hand over through
+   a grey dashed card that names the next picture ("continues: flow 2"); the next one opens with the same card, its
+   line naming the picture before ("from flow 1"). Two pictures that answer two questions about one subject are not a
+   split flow: each takes its own density. A map, a tree,
+   a matrix or a pipeline whose stages a reader wants side by side may hold more, as long as every card keeps its size
+   and nothing crowds.
 2. Choose the density, name the compartments and give each its colour and glyph.
 3. Lay the cards on the composition's grid in [references/drawio.md](references/drawio.md). Never shift a card off
    the grid to save space: the regular grid is most of what makes the picture calm.
@@ -223,9 +248,12 @@ Copy this into your work and tick it for each picture, in both themes:
 
 - A label in the 22 px gap between two cards, or in the gap between two compartments, touches both sides. Give it a
   stretch of its own.
-- A logo can vanish in one of the two themes. A white-only mark takes its brand colour; a dark one (black, navy, a
-  deep blue) sits on a light chip in the dark theme; a pale one (yellow, light cyan) on a dark chip in the light
-  theme.
+- A logo can vanish in one of the two themes. A white-only mark takes its brand colour; render.mjs puts a dark one
+  (black, navy, a deep blue) on a light chip in the dark theme and a pale one (yellow, light cyan) on a dark chip in
+  the light theme, and names a logo it leaves half faded.
+- Near misses read as crowding even when nothing touches: render.mjs reports two words closer than 6 px on a row, a
+  line within 12 px of words it does not carry, and a page whose margins differ because a cell is wider than its
+  words.
 - A gridline or a today line drawn as an ordinary arrow is reported for every card it crosses. Give it
   `bento=guide`, and stop it short of any words.
 - A glyph drawn in `currentColor` turns black once embedded. The icon script colours it for you.

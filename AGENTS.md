@@ -16,6 +16,11 @@ infrastructure minimal.
   committed. `SKILL.md` points the agent at them, because an example shows the target faster than a description.
 - Add `scripts/`, `references/`, `assets/` or `evals/` only when the skill needs them, and use relative paths so each
   folder installs on its own.
+- Keep a `CHANGELOG.md` beside `SKILL.md`. It lives in the skill's folder, not at the root, because each skill installs
+  on its own and its changelog travels with it.
+- Give every skill a `README.md` beside `SKILL.md`: the showcase GitHub shows under the skill's folder, written for the
+  people deciding whether to use it, with its strongest pictures in `showcase/`. `SKILL.md` never points at it, so an
+  agent running the skill does not read it.
 
 ## Distribution
 
@@ -50,10 +55,19 @@ Instructions for completing the task, with an example when helpful.
 
 - Update affected documentation as part of every change, without waiting for a separate request.
 - When adding, changing, renaming or removing a skill, update the table in the root README in the same change: the
-  name linked to its `SKILL.md` and one or two sentences on what it does. Keep rows sorted by name and the README
+  name linked to its `README.md`, the showcase, and one or two sentences on what it does. Keep rows sorted by name and the README
   minimal; detailed usage belongs in the skill itself.
 - In the same change, add, update or remove the skill's entry in `.claude-plugin/marketplace.json`. Never rename a
   published entry; add a `renames` map instead, so existing installs keep working.
+- In the same change, update the skill's `README.md` whenever the change adds a capability, changes what the skill
+  does or changes how its output looks, without waiting to be asked. Start from the current README: keep its layout,
+  its order and its voice, and change only what the change touched (a new section for a new capability, a corrected
+  fact, an image rendered again from its source in `showcase/` when the look moved). Never rewrite it from scratch.
+  The README's opening comment says how its images are made.
+- In the same change, record what changed in the skill's `CHANGELOG.md`: newest first, one `## YYYY-MM-DD` heading
+  per day something is pushed, bullets that say what changed for someone using the skill. There are no version
+  numbers, since the commit is the version: the date tells a reader what `npx skills update` or
+  `claude plugin update` brought.
 - Update this file when repository conventions change. Document current behaviour, not planned features.
 
 ## Before finishing
