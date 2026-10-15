@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use these skills in your work, please cite them as below."
+type: software
+title: "shuji: skills for coding agents"
+abstract: >-
+  Portable skills for coding agents in the Agent Skills format: bento-diagrams draws engineering diagrams in Apple's
+  system look as one draw.io file for both themes, checked for overlaps; bushido-setup sets up a repository for coding
+  agents with the stack's official generator, precepts from the classic programming manuals, agent instruction files,
+  CI checks and companion skills, and audits it when run again.
+authors:
+  - given-names: Gabriele
+    family-names: Durante
+repository-code: "https://github.com/exdsgift/shuji-skills"
+url: "https://github.com/exdsgift/shuji-skills"
+license: MIT
+keywords:
+  - agent skills
+  - coding agents
+  - Claude Code
+  - Codex
+  - AGENTS.md
+  - diagrams
+  - draw.io
+  - repository setup

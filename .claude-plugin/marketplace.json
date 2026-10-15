@@ -9,13 +9,19 @@
     {
       "name": "bento-diagrams",
       "source": "./",
-      "skills": ["./skills/bento-diagrams"],
+      "skills": [
+        "./skills/bento-diagrams"
+      ],
+      "license": "MIT",
       "description": "Draws engineering diagrams in Apple's system look as one .drawio file that follows the light and dark themes."
     },
     {
       "name": "bushido-setup",
       "source": "./",
-      "skills": ["./skills/bushido-setup"],
+      "skills": [
+        "./skills/bushido-setup"
+      ],
+      "license": "MIT",
       "description": "Sets up a repo for coding agents: official generators, fifteen precepts in a short AGENTS.md, docs and CI that stay current, companion skills; run again, it audits."
     }
   ]

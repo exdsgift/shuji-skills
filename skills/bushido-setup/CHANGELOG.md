@@ -7,7 +7,8 @@ What changed in bushido-setup, newest first. There are no version numbers: each 
 
 ### License
 
-- The skill is under the MIT license, with a copy in its folder. What it writes into your repository is yours.
+- The skill is under the MIT license, with a copy in its folder. The text it writes into your repository from this
+  skill may be used without that notice; the files from Matt Pocock's templates keep his MIT notice beside them.
 
 ### First version
 

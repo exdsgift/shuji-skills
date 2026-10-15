@@ -32,7 +32,9 @@ infrastructure minimal.
   [skills CLI](https://github.com/vercel-labs/skills) supports.
 - `.claude-plugin/marketplace.json` makes this repository a Claude Code plugin marketplace named `shuji`. Each skill
   is one plugin entry named after it, with `"source": "./"` and `"skills": ["./skills/<skill-name>"]` so only that
-  folder loads. Leave out `version`: the commit is the version, so every push is a release.
+  folder loads, and `"license": "MIT"`. Leave out `version`: the commit is the version, so every push is a release.
+- `CITATION.cff` describes the repository for citation. Keep its `abstract` and `keywords` in step with the skills
+  the README lists.
 
 A new skill starts from this shape:
 
@@ -78,6 +80,8 @@ Instructions for completing the task, with an example when helpful.
 
 - Check changed skill metadata, relative links and README coverage.
 - When `.claude-plugin/marketplace.json` or a skill's folder changes, run `claude plugin validate .`.
+- When `LICENSE` changes or a skill is added, check that every copy matches the root:
+  `for f in skills/*/LICENSE; do cmp -s LICENSE "$f" || echo "$f differs"; done`.
 - For a new or substantially changed skill, run its evaluations, or at least a representative request, and look at
   the results.
 - Run `git diff --check` and review the changed files. Report any check that could not run. There is no

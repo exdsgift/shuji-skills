@@ -225,8 +225,12 @@ docs; [choosealicense.com](https://choosealicense.com/); [lychee](https://github
 
 ## License and credits
 
-The skill is under the [MIT license](LICENSE). What it writes into your repository, the precepts included, is yours to
-use with no notice needed.
+The skill is under the [MIT license](LICENSE). The text it writes into your repository from this skill, the precepts
+included, may be used without that notice. The files it writes from Matt Pocock's templates keep his MIT notice,
+which it writes beside them.
+
+The diagram at the top embeds Instrument Sans and IBM Plex Mono, under the SIL Open Font License, and Lucide glyphs,
+under the ISC license.
 
 The `docs/agents/` templates in [assets/docs-agents/](assets/docs-agents/) come from Matt Pocock's
 `setup-matt-pocock-skills`, under the MIT license (Copyright (c) 2026 Matt Pocock; the notice is in

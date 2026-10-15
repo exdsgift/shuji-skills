@@ -7,7 +7,8 @@ What changed in bento-diagrams, newest first. There are no version numbers: each
 
 ### License
 
-- The skill is under the MIT license, with a copy in its folder. The diagrams you draw with it are yours.
+- The skill is under the MIT license, with a copy in its folder. A diagram's layout and words are yours to use without
+  its notice; the embedded fonts (SIL OFL) and Lucide glyphs (ISC) keep their own terms.
 
 ### A lighter showcase
 
