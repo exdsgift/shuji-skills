@@ -5,6 +5,11 @@ What changed in bento-diagrams, newest first. There are no version numbers: each
 
 ## 2026-10-15
 
+### License
+
+- The skill is under the MIT license, with a copy in its folder. A diagram's layout and words are yours to use without
+  its notice; the embedded fonts (SIL OFL) and Lucide glyphs (ISC) keep their own terms.
+
 ### A lighter showcase
 
 - The README shows five pictures instead of ten, each large enough to read: the optimizer, a failover ladder beside

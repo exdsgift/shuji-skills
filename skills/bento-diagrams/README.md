@@ -153,6 +153,7 @@ an alt text. The scripts need Node 18 or later, the draw.io desktop app, and Chr
 
 <br>
 
-<p align="center"><sub>Instrument Sans and IBM Plex Mono are under the SIL Open Font License; the glyphs are Lucide
-(ISC). Product logos remain their owners' trademarks. The SkyPilot pictures are drawn from SkyPilot's open source
-code.</sub></p>
+<p align="center"><sub>The skill is under the <a href="LICENSE">MIT license</a>; a diagram's layout and words are yours
+to use without its notice. The fonts it embeds, Instrument Sans and IBM Plex Mono, are under the SIL Open Font License;
+the glyphs are Lucide (ISC). Product logos remain their owners' trademarks. The SkyPilot pictures are drawn from
+SkyPilot's open source code.</sub></p>

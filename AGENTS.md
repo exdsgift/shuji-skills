@@ -20,6 +20,8 @@ infrastructure minimal.
   folder installs on its own.
 - Keep a `CHANGELOG.md` beside `SKILL.md`. It lives in the skill's folder, not at the root, because each skill installs
   on its own and its changelog travels with it.
+- Put a copy of the root `LICENSE` (MIT) beside `SKILL.md`, for the same reason. A file taken from someone else keeps
+  its own license notice next to it, and the skill's README names it.
 - Give every skill a `README.md` beside `SKILL.md`: the showcase GitHub shows under the skill's folder, written for the
   people deciding whether to use it, with its strongest pictures in `showcase/`. `SKILL.md` never points at it, so an
   agent running the skill does not read it.
@@ -30,7 +32,9 @@ infrastructure minimal.
   [skills CLI](https://github.com/vercel-labs/skills) supports.
 - `.claude-plugin/marketplace.json` makes this repository a Claude Code plugin marketplace named `shuji`. Each skill
   is one plugin entry named after it, with `"source": "./"` and `"skills": ["./skills/<skill-name>"]` so only that
-  folder loads. Leave out `version`: the commit is the version, so every push is a release.
+  folder loads, and `"license": "MIT"`. Leave out `version`: the commit is the version, so every push is a release.
+- `CITATION.cff` describes the repository for citation. Keep its `abstract` and `keywords` in step with the skills
+  the README lists.
 
 A new skill starts from this shape:
 
@@ -76,6 +80,8 @@ Instructions for completing the task, with an example when helpful.
 
 - Check changed skill metadata, relative links and README coverage.
 - When `.claude-plugin/marketplace.json` or a skill's folder changes, run `claude plugin validate .`.
+- When `LICENSE` changes or a skill is added, check that every copy matches the root:
+  `for f in skills/*/LICENSE; do cmp -s LICENSE "$f" || echo "$f differs"; done`.
 - For a new or substantially changed skill, run its evaluations, or at least a representative request, and look at
   the results.
 - Run `git diff --check` and review the changed files. Report any check that could not run. There is no
