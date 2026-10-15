@@ -152,9 +152,11 @@ as a pointer: "Follow the instructions in `AGENTS.md` at the repository root."
   - list it in the "Skills" section of `AGENTS.md`: agents that drop its description learn of it only from that line.
 - A process that stays inside the repo, such as adding a payment provider, stays model-invoked, with a description that
   says when it applies.
+- Write the user's steps, and only theirs. Fill in the commands that carry out a step they named (the `git` or `gh`
+  call that pushes a tag); never add a step they did not name.
 - When the process relies on files the repo does not have (a deploy workflow, a Dockerfile), list them in the
   hand-over; never write them yourself. When it leaves out a step a precept needs, such as moving the changelog's
-  `Unreleased` entries under the new version, ask in the plan whether to add that step.
+  `Unreleased` entries under the new version, offer that step as an optional item of the plan.
 
 ## Merge
 

@@ -17,8 +17,8 @@
         "A release process skill sits in .agents/skills and .claude/skills with disable-model-invocation: true and agents/openai.yaml allow_implicit_invocation: false, holds only the given facts (tag vX.Y.Z, Actions to Fly.io, no Friday deploys), and AGENTS.md lists it",
         "The companion skills sit as real files in .agents/skills and .claude/skills, identical except code-review, which is only in .agents/skills; to-spec, to-tickets and triage are included; skills-lock.json lists them all",
         "ci.yml has a code job with the uv commands and a docs job with lychee and the agent-files check; every action is pinned to a full commit SHA",
-        "LICENSE is MIT; dependabot.yml has the github-actions entry, and a uv entry only if GitHub supports the current uv",
-        "No ARCHITECTURE.md, no GLOSSARY.md or ADR without content, no CHANGELOG.md unless the agent treats the tags as shipped versions and says so",
+        "LICENSE is MIT; dependabot.yml has the github-actions and uv entries, and the hand-over says to check Dependabot's first run",
+        "No ARCHITECTURE.md, no GLOSSARY.md or ADR without content, and CHANGELOG.md with an Unreleased section, since tagged releases are shipped versions",
         "Lint, format check, type check and tests ran and passed; the hand-over reports them and the always-loaded line count",
         "ruff, mypy and pytest are configured to skip .agents and .claude",
         "The hand-over lists the files the release process relies on and the repo lacks (the deploy workflow, a Dockerfile, fly.toml) without writing them"
@@ -30,7 +30,7 @@
       "prompt": "Set up a new TypeScript web app with React: an internal dashboard. Only I work on it and I don't use an issue tracker. No secrets. No license, it's private. Nothing special an agent needs to know yet. You have the go-ahead for the plan you show.",
       "expected_output": "A Vite react-ts scaffold with its own linter kept, the cross-cutting files, CI, and the agent files without any file that would be empty: no secrets doc, no license, no process skill, no glossary.",
       "assertions": [
-        "pnpm create vite ran with --template react-ts; the Oxlint setup it installed is kept and no second linter was added",
+        "npm create vite ran with --template react-ts (the skill's default for a single package); the Oxlint setup it installed is kept and Biome was added as the formatter alone",
         "No LICENSE file; no docs/secrets.md and no .env.example; no process skill; no GLOSSARY.md, docs/adr/ or CHANGELOG.md",
         "to-spec, to-tickets and triage are not installed; docs/agents/ holds no issue-tracker.md and no triage-labels.md, and AGENTS.md has no Issue tracker section",
         "AGENTS.md is under 100 lines, carries the precepts word for word, and its Commands section holds only commands an agent would not guess",

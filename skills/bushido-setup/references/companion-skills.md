@@ -25,10 +25,12 @@ the three live together.
 
 ## Skip what the user already has
 
-Before installing, look for each skill at user scope: the plugins in `claude plugin list` (`mattpocock-skills`,
-`ponytail`, `superpowers` carry all their skills), the folders `~/.claude/skills/<name>/` and
-`~/.agents/skills/<name>/`, and `npx skills ls -g`. Leave a found skill out of the install and say so in the plan:
-installing it again would list it twice, and teammates without it will need to install it themselves.
+Before installing, look for each skill in the repo (`.agents/skills/<name>/`, `.claude/skills/<name>/`,
+`skills-lock.json`) and at user scope: the plugins in `claude plugin list` (`mattpocock-skills`, `ponytail`,
+`superpowers` carry all their skills), the folders `~/.claude/skills/<name>/` and `~/.agents/skills/<name>/`, and
+`npx skills ls -g`. Leave a found skill out of the install and say so in the plan: installing it again would overwrite
+the repo's copy or list the skill twice. A skill skipped because the user has it is one teammates must install
+themselves; say so in the hand-over.
 
 ## Install
 
@@ -45,13 +47,20 @@ npx skills@latest add obra/superpowers --copy -y -a claude-code codex cursor git
   -s verification-before-completion systematic-debugging receiving-code-review finishing-a-development-branch
 ```
 
+With an issue tracker, also:
+
+```bash
+npx skills@latest add mattpocock/skills --copy -y -a claude-code codex cursor github-copilot gemini-cli \
+  -s to-spec to-tickets triage
+```
+
 - `claude-code` writes `.claude/skills/`; the other four agents share `.agents/skills/`.
 - The CLI writes `skills-lock.json`. Commit it: `npx skills experimental_install` restores the skills from it, and
   `npx skills update -p -y` updates them.
 - The CLI sends anonymous install counts to skills.sh. When the user wants none, set `DISABLE_TELEMETRY=1`.
 - When `triage` is installed on a GitHub repo, list `gh label create` for each of `needs-triage`, `needs-info`,
   `ready-for-agent`, `ready-for-human` and `wontfix` that `gh label list` lacks, in the plan, and run them after the
-  go-ahead.
+  go-ahead. When the labels cannot be read, list all five.
 - On an existing repo, suggest one whole-repo review in the hand-over: `npx skills use DietrichGebert/ponytail@ponytail-audit`
   prints a prompt for it without installing the skill.
 

@@ -10,7 +10,8 @@ words, and leave out its approved-word dictionary, which addresses a weakness mo
 1. Write one instruction per sentence or bullet, and start it with the verb.
 2. Use the active voice. When the actor is not the reader, name the actor.
 3. Put the condition first: "When X, do Y."
-4. Keep the instruction under about 20 words. Put its reason in the next sentence, and keep the reason.
+4. Keep the instruction under about 20 words. Put its reason in the next sentence, and keep the reason. When the user
+   gave a rule without a reason, write the rule alone: a reason you invent is not a fact.
 5. Give each concept one name and use it everywhere. Define a coined term once, where it first appears.
 6. Use concrete verbs and checkable limits ("run `uv run pytest`", "under 100 lines"), not vague ones ("handle",
    "properly", "as needed").

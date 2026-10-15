@@ -58,9 +58,10 @@ When a `.gitignore` exists, the generator's included, append only the lines belo
 
 ## LICENSE
 
-Write it only for the license the user picked: `gh api licenses/<spdx-id> --jq .body`. Put the year and the holder the
-user named where the text has placeholders (MIT's `[year] [fullname]`); Apache-2.0's placeholders sit in its appendix
-and stay as they are. For "none", write no file.
+Write it only for the license the user picked: `gh api licenses/<spdx-id> --jq .body`, with trailing blank lines
+trimmed. Put the year and the holder the user named where the text has placeholders (MIT's `[year] [fullname]`).
+Apache-2.0's placeholders sit in its appendix and stay as they are; its holder goes in a `NOTICE` file:
+`<project name>` on the first line, `Copyright <year> <holder>` on the second. For "none", write no file.
 
 ## Secrets
 
@@ -74,21 +75,21 @@ When the project uses secrets:
 
   Values never enter the repo. Local values go in `.env`, which Git ignores.
 
-  | Name | Purpose | Where it lives | Owner |
-  | --- | --- | --- | --- |
-  | `STRIPE_API_KEY` | Charges cards | 1Password vault "payments"; GitHub environment `prod` | payments team |
+  | Name | Where it lives | Owner |
+  | --- | --- | --- |
+  | `STRIPE_API_KEY` | 1Password vault "payments"; GitHub environment `prod` | payments team |
   ```
 
-  Write only what the user said. Add a column, such as rotation, when the user gives its facts.
+  Write only what the user said. Add a column, such as purpose or rotation, when the user gives its facts.
 
-- `.claude/settings.json` keeps Claude Code from reading local values; merge the key into an existing file:
+- `.claude/settings.json` keeps Claude Code from reading the files that hold values; merge the key into an existing
+  file, and add any other file the user names as holding values:
 
   ```json
-  { "permissions": { "deny": ["Read(./.env)", "Read(./.env.*)"] } }
+  { "permissions": { "deny": ["Read(./.env)", "Read(./.env.local)", "Read(./.env.*.local)"] } }
   ```
 
-  The rule covers `.env.example` too: when an agent adds a secret, it adds the row to `docs/secrets.md` and asks the
-  user to add the name to `.env.example`.
+  `.env.example` stays readable, so agents and the audit can keep its names in step with `docs/secrets.md`.
 
 ## CONTRIBUTING.md
 
@@ -98,8 +99,10 @@ holds the precepts both people and agents follow.
 
 ## CI
 
-`.github/workflows/ci.yml`. Pin every action to the full commit SHA of its latest release, with the tag in a comment:
-`gh api repos/<owner>/<repo>/releases/latest --jq .tag_name`, then `gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`.
+`.github/workflows/ci.yml` when the remote is on GitHub or there is none yet; on a GitLab remote, write the same two
+jobs and the same checks as `.gitlab-ci.yml`. Pin every GitHub action to the full commit SHA of its latest release,
+with the tag in a comment: `gh api repos/<owner>/<repo>/releases/latest --jq .tag_name`, then
+`gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`.
 
 ```yaml
 name: CI
@@ -134,11 +137,12 @@ jobs:
             for p in docs/*; do
               n=$(basename "$p")
               [ "$n" = README.md ] && continue
-              grep -qF "$n" docs/README.md || { echo "docs/README.md does not list $n"; fail=1; }
+              grep -qF "]($n" docs/README.md || { echo "docs/README.md does not link $n"; fail=1; }
             done
           fi
           for f in $(git ls-files -co --exclude-standard '*/AGENTS.md' ':!:.agents/**' ':!:.claude/**'); do
-            grep -qF "$f" AGENTS.md || { echo "the map in AGENTS.md does not list $f"; fail=1; }
+            [ -f "$f" ] || continue
+            grep -qF "\`$f\`" AGENTS.md || { echo "the map in AGENTS.md does not list $f"; fail=1; }
             [ -f "$(dirname "$f")/CLAUDE.md" ] || { echo "$f has no CLAUDE.md beside it"; fail=1; }
           done
           # code-review lives only in .agents/skills, so it never hides Claude Code's built-in /code-review.
