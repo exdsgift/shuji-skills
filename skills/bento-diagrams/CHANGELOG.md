@@ -3,6 +3,11 @@
 What changed in bento-diagrams, newest first. There are no version numbers: each push to `main` is a release, and
 `npx skills update` or `claude plugin update bento-diagrams@shuji` brings it.
 
+## 2026-10-16
+
+- The README links [SynaLemma](https://synalinks.com/en/synalemma), a product page whose diagrams are drawn with
+  the skill, as an example of it in use.
+
 ## 2026-10-15
 
 ### License

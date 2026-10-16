@@ -127,6 +127,12 @@ the file name. No gradients, glows or sparkles standing in for AI. No buzzwords,
 the boxes: the arrows give the order, and the caption tells it in plain sentences. A number appears only when the
 source states it.
 
+## In use
+
+[SynaLemma](https://synalinks.com/en/synalemma), a product of SynaLinks, explains itself on its page with diagrams
+drawn with this skill: its architecture as nested containers, inside and outside the harness, the loop from a question
+to a kept rule, and the two checks every rule goes through.
+
 ## Install
 
 Any agent ([Claude Code, Codex, Cursor, Gemini CLI, Copilot and more](https://github.com/vercel-labs/skills)), with
