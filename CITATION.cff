@@ -4,9 +4,7 @@ type: software
 title: "shuji: skills for coding agents"
 abstract: >-
   Portable skills for coding agents in the Agent Skills format: bento-diagrams draws engineering diagrams in Apple's
-  system look as one draw.io file for both themes, checked for overlaps; bushido-setup sets up a repository for coding
-  agents with the stack's official generator, precepts from the classic programming manuals, agent instruction files,
-  CI checks and companion skills, and audits it when run again.
+  system look as one draw.io file for both themes, checked for overlaps.
 authors:
   - given-names: Gabriele
     family-names: Durante
@@ -18,7 +16,5 @@ keywords:
   - coding agents
   - Claude Code
   - Codex
-  - AGENTS.md
   - diagrams
   - draw.io
-  - repository setup
