@@ -22,7 +22,8 @@ _Avoid_: code, definition
 ## Colour
 
 **Accent**:
-The one colour a diagram carries, on its arrowheads only; everything else in a diagram is grey.
+The one colour of the theme: the arrowheads and the key node of a diagram, and the series of a chart that has only
+one. Everything else is grey.
 _Avoid_: brand colour, highlight colour, primary
 
 **Key node**:
@@ -34,6 +35,6 @@ A node outside the system being drawn, or optional, or not built yet, drawn with
 _Avoid_: ghost node, third-party box
 
 **Series colours**:
-The Okabe-Ito colours in one fixed order, worn by the series of a chart; the first series always takes the first
-colour.
+The Okabe-Ito colours in one fixed order, worn by the series of a chart that has two or more; the first series
+always takes the first colour.
 _Avoid_: categorical palette, chart theme, rainbow

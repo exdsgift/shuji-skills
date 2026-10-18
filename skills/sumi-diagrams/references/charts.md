@@ -3,8 +3,10 @@
 Read this when the request carries numbers to show. Every example below renders clean with `scripts/render.mjs` on
 Pele 1.6.0.
 
-Colour in a chart says which series is which. Series wear the Okabe-Ito colours (Okabe & Ito 2008) in the theme's
-fixed order: blue, green, vermillion, pink, orange, sky, yellow. In that order every two neighbours stay apart under
+A chart with one series (one bar or line series, the points of a quadrant, one radar curve, a git graph with only
+`main`) wears the accent, the theme's orange, so a picture never carries a second colour it does not need; the script
+does this by itself. From two series on, colour says which series is which: series wear the Okabe-Ito colours (Okabe
+& Ito 2008) in the theme's fixed order: blue, green, vermillion, pink, orange, sky, yellow. In that order every two neighbours stay apart under
 protanopia and deuteranopia (worst simulated distance 11, against a target of 8). Three rules follow:
 
 - The first series takes the first colour, always; a series keeps its colour when others are added or removed.
@@ -55,7 +57,7 @@ xychart
   `bar [...]` and `line [...]` series; `xychart horizontal` turns the bars.
 - Name every series, `line "API" [...]`: with names Pele draws a legend; without them the reader cannot tell the
   lines apart. Past three lines, split the chart.
-- One bar series is one colour: a bar's length already shows its value, so never colour bars by value.
+- One bar series is one colour, the accent: a bar's length already shows its value, so never colour bars by value.
 - Start a bar axis at 0. Frontmatter `config: xyChart: showDataLabel: true` prints the values on the bars.
 
 ## Quadrant

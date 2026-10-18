@@ -91,8 +91,9 @@ The theme is fixed and lives in [assets/theme.css](assets/theme.css); `render.mj
 - Mark at most one node `:::key`, the one the diagram is about (the service a change touches, the failing step): it
   gets an outline in the accent. In a tree view the same mark is `:::highlight`. Mark `:::ext` what is outside the system, optional or not built yet: it gets a
   dashed outline. Nothing else carries emphasis.
-- Charts: series take the Okabe-Ito colours in a fixed order (blue, green, vermillion, pink, orange, sky, yellow).
-  Name every series so it has a legend entry, keep to six, one measure per chart. Details in
+- Charts: a chart with one series wears the accent, like everything else in the theme; the script sees to it. From
+  two series on, they take the Okabe-Ito colours in a fixed order (blue, green, vermillion, pink, orange, sky,
+  yellow). Name every series so it has a legend entry, keep to six, one measure per chart. Details in
   [charts](references/charts.md).
 - Direction: `LR` for a chain of up to about eight steps, `TD` for anything longer or tree-shaped. The script reports
   a picture whose text would shrink below 11 px at its destination.

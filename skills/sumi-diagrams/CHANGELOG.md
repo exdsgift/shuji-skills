@@ -15,7 +15,8 @@ What changed in sumi-diagrams, newest first. There are no version numbers: each 
   `<picture>` for a README on GitHub or GitLab, or a checked block for an Obsidian note.
 - One theme: grey boxes and lines, muted words on the edges, an orange accent on the arrowheads, `:::key` for the one
   node a diagram is about and `:::ext` for what is outside it. Chart series wear the Okabe-Ito colours, ordered so
-  neighbours stay apart under colour blindness. Agentflow kinds and timeline sections stay grey; Gantt bars are
+  neighbours stay apart under colour blindness; a chart with a single series wears the accent instead, so the
+  theme keeps one colour. Agentflow kinds and timeline sections stay grey; Gantt bars are
   neutral, with the accent on critical tasks and the today line.
 - `scripts/render.mjs` checks what Pele and Mermaid let through without an error:
   - a style on a missing node, more than one key node, hand-set colours, a missing title and description;
