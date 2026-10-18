@@ -5,6 +5,12 @@ What changed in sumi-diagrams, newest first. There are no version numbers: each 
 
 ## 2026-10-18
 
+### Reporting a defect
+
+- When something fails because of the skill itself, the agent offers to report it on exdsgift/shuji-skills: it
+  drafts an issue without your code or your words, shows it to you, and opens it only after you say yes, with `gh` or
+  through a link to the issue form.
+
 ### One Claude Code plugin
 
 - In Claude Code the skill now comes in the `shuji` plugin, with every other shuji skill, and runs as

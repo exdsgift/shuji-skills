@@ -5,6 +5,10 @@ What changed in bento-diagrams, newest first. There are no version numbers: each
 
 ## 2026-10-18
 
+- When something fails because of the skill itself, the agent offers to report it on exdsgift/shuji-skills: it
+  drafts an issue without your code or your words, shows it to you, and opens it only after you say yes, with `gh` or
+  through a link to the issue form.
+
 - In Claude Code the skill now comes in the `shuji` plugin, with every other shuji skill, and runs as
   `/shuji:bento-diagrams`. If you installed `bento-diagrams@shuji`, run
   `claude plugin install shuji --marketplace exdsgift/shuji-skills` once to move to it. `npx skills` installs are

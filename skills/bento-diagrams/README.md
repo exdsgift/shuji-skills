@@ -157,6 +157,9 @@ Then ask in plain words:
 The agent picks the composition and the density, writes the `.drawio`, checks it and hands it over with a caption and
 an alt text. The scripts need Node 18 or later, the draw.io desktop app, and Chrome or Edge.
 
+When the skill itself fails, not your request or your machine, the agent offers to report it here as an issue. It
+shows you the draft, which leaves out your code and your words, and posts it only after you say yes.
+
 <br>
 
 <p align="center"><sub>The skill is under the <a href="LICENSE">MIT license</a>; a diagram's layout and words are yours
