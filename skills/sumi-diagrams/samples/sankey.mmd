@@ -1,0 +1,16 @@
+---
+config:
+  sankey:
+    suffix: k
+---
+sankey
+%% accTitle: Yesterday's 1,000,000 requests through the CDN
+%% accDescr: Of 1,000,000 requests, 600k reached the Frankfurt POP and 400k the Zurich POP. Frankfurt served 350k from its cache and sent 250k to the origin; Zurich served 300k from its cache and sent 100k to the origin. Of the 350k at the origin, it answered 330k itself and passed 20k to the image service.
+Frankfurt POP,Frankfurt cache,350
+Frankfurt POP,Origin,250
+Origin,Answered by origin,330
+Origin,Image service,20
+Zurich POP,Origin,100
+Zurich POP,Zurich cache,300
+Requests,Frankfurt POP,600
+Requests,Zurich POP,400

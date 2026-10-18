@@ -1,0 +1,23 @@
+classDiagram
+  accTitle: Editor view, commands and note repository
+  accDescr: EditorView dispatches StateCommand objects and reads notes from a Repo of Note; MarkdownFormatting implements the StateCommand interface.
+  class StateCommand {
+    <<interface>>
+    +run(ctx: Context) boolean
+  }
+  class EditorView {
+    +state: EditorState
+    +dispatch(tr: Transaction) void
+    +focus() void
+  }
+  class MarkdownFormatting {
+    +toggleBold() boolean
+    +insertLink(url: string) boolean
+    +run(ctx: Context) boolean
+  }
+  class Repo~T~ {
+    +find(id: string) T
+  }
+  EditorView --> StateCommand : dispatches
+  MarkdownFormatting ..|> StateCommand
+  EditorView --> Repo : reads Repo#lt;Note#gt;

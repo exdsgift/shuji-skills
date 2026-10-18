@@ -1,0 +1,77 @@
+/* The sumi-diagrams theme, embedded into every SVG by scripts/render.mjs.
+   Neutral greys carry the diagram; the accent marks arrowheads, the key node and the Gantt today line; chart series
+   wear the Okabe-Ito colours (Okabe & Ito 2008) in a fixed order. Every colour is a CSS variable, so one file follows
+   the light and the dark theme. render.mjs splits this file at the @light, @dark and @rules markers. */
+
+/* @light */
+.pele {
+  --page: #ffffff;
+  --pele-bg: #f3f3f3;
+  --pele-fg: #141414;
+  --pele-muted: #6b6b6b;
+  --pele-line: #8c8c8c;
+  --pele-surface: #fafafa;
+  --pele-surface-alt: #efefef;
+  --pele-border: #d2d2d2;
+  --pele-accent: #f0531a;
+  --pele-critical: #f0531a;
+  --pele-radius: 6px;
+  --accent: #f0531a;
+  --bar: #ececec;
+  --bar-border: #cfcfcf;
+  --on-series: #141414;
+  --pele-series-1: #0072b2;
+  --pele-series-2: #009e73;
+  --pele-series-3: #d55e00;
+  --pele-series-4: #cc79a7;
+  --pele-series-5: #e69f00;
+  --pele-series-6: #56b4e9;
+  --pele-series-7: #f0e442;
+  --pele-series-8: #8c8c8c;
+}
+
+/* @dark */
+.pele {
+  --page: #151515;
+  --pele-bg: #121212;
+  --pele-fg: #ffffff;
+  --pele-muted: #8b8b8b;
+  --pele-line: #707070;
+  --pele-surface: #171717;
+  --pele-surface-alt: #1e1e1e;
+  --pele-border: #333333;
+  --pele-accent: #ff5e21;
+  --pele-critical: #ff5e21;
+  --accent: #ff5e21;
+  --bar: #262626;
+  --bar-border: #3a3a3a;
+  --on-series: #141414;
+  --pele-series-8: #8b8b8b;
+}
+
+/* @rules */
+.pele { background: var(--page); }
+/* arrowheads in the accent; ER crow's feet stay grey */
+.pele .pele-marker[fill="var(--_l)"] { fill: var(--accent); }
+.pele .pele-marker:not([fill]) { stroke: var(--accent); }
+.pele-er .pele-marker:not([fill]) { stroke: var(--_l); }
+/* words on edges are quieter than words in boxes, except a sequence's messages */
+.pele .pele-edge-label text { fill: var(--_m); }
+.pele-sequence .pele-edge-label text { fill: var(--_fg); }
+.pele-sequence .pele-lifeline { stroke-dasharray: 5 4; }
+/* Gantt bars are neutral; critical tasks and the today line keep the accent */
+.pele-gantt rect[fill="var(--_c)"] { fill: var(--bar); stroke: var(--bar-border); }
+.pele-gantt .pele-label[fill="var(--_bg)"] { fill: var(--_fg); }
+/* slice labels sit on the series colours, which are all mid-light */
+.pele-pie .pele-slice-labels[fill] { fill: var(--on-series); }
+/* a diagram stays grey: agentflow's kinds are told by their shapes, not by series colours */
+.pele-agentflow .pele-node > [fill^="var(--pele-series"] { fill: var(--_s); fill-opacity: 1; stroke: var(--_b); }
+.pele-agentflow .pele-node > [stroke^="var(--pele-series"] { stroke: var(--_b); }
+/* a timeline's sections and periods are labels, not data: grey boxes, ink words */
+.pele-timeline .pele-section > rect, .pele-timeline .pele-period > rect { fill: var(--bar); stroke: var(--bar-border); }
+.pele-timeline .pele-section > text, .pele-timeline .pele-period > text { fill: var(--_fg); }
+.pele-timeline .pele-event > rect { fill: var(--_s); fill-opacity: 1; stroke: var(--_b); }
+.pele-timeline .pele-dot { fill: var(--_l); stroke: none; }
+/* emphasis: one key node, and dashed outlines for what is external or optional */
+.pele .key > :first-child { stroke: var(--accent); stroke-width: 1.5; }
+.pele .ext > :first-child { stroke-dasharray: 4 3; }

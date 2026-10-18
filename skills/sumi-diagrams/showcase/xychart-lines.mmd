@@ -1,0 +1,9 @@
+xychart
+  accTitle: Weekly p95 latency by service, W1 to W8
+  accDescr: Over eight weeks the API's p95 latency fell from 310 to 190 ms, Search's from 180 to 140 ms, and Auth's stayed between 80 and 120 ms, ending at 80 ms.
+  title "p95 latency by service (ms)"
+  x-axis [W1, W2, W3, W4, W5, W6, W7, W8]
+  y-axis "ms" 0 --> 400
+  line "API" [310, 290, 305, 260, 240, 220, 215, 190]
+  line "Search" [180, 185, 170, 175, 160, 150, 155, 140]
+  line "Auth" [90, 120, 110, 100, 95, 105, 85, 80]

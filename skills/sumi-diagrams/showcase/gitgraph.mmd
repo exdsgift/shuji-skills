@@ -1,0 +1,23 @@
+gitGraph
+  accTitle: Branching model
+  accDescr: Features branch off develop and merge back into develop. A release/x.y branch is cut from develop, fixed there, then merged into main with a tag and back into develop. Hotfixes branch off main and merge into main and develop.
+  commit id: "initial"
+  branch develop order: 3
+  commit id: "dev commit"
+  branch feature/name order: 4
+  commit id: "feature work"
+  checkout develop
+  merge feature/name
+  branch release/x.y order: 2
+  commit id: "release fix"
+  checkout main
+  merge release/x.y tag: "x.y"
+  checkout develop
+  merge release/x.y
+  checkout main
+  branch hotfix/name order: 1
+  commit id: "hotfix"
+  checkout main
+  merge hotfix/name
+  checkout develop
+  merge hotfix/name

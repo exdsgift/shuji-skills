@@ -1,0 +1,13 @@
+treeView-beta
+  accTitle: orders-service repository layout
+  accDescr: The orders-service repository holds the server entry point in cmd/server, the handlers, store and events code in internal, the SQL migrations in migrations, and the Dockerfile and deploy.yaml at the root. Requests come in at internal/handlers.go.
+  orders-service/
+    cmd/server/main.go
+    internal/
+      handlers.go :::highlight ## requests come in here
+      store.go
+      events.go
+    migrations/
+      001_init.sql
+    Dockerfile
+    deploy.yaml

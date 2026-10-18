@@ -1,0 +1,15 @@
+gantt
+  accTitle: Migration to API v2
+  accDescr: Dual writes run from 1 September for 30 days, then reads cut over for 25 days; SDK 2.0 runs from 10 October for 40 days, then deprecating v1, on the critical path, takes 20 days and ends on 9 December, six days before v2 GA on 15 December. Today is 18 October.
+  title Migration to API v2
+  dateFormat YYYY-MM-DD
+  axisFormat %b %d
+  todayMarker on
+  section Data migration
+    Dual writes      :done, dual, 2026-09-01, 30d
+    Cut over reads   :active, reads, after dual, 25d
+  section SDK and v1
+    SDK 2.0          :active, sdk, 2026-10-10, 40d
+    Deprecate v1     :crit, deprecate, after sdk, 20d
+  section Launch
+    v2 GA            :milestone, ga, 2026-12-15, 0d

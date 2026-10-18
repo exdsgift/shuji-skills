@@ -1,0 +1,24 @@
+swimlane-beta TB
+  accTitle: Incident response
+  accDescr: The on-call engineer is paged, acknowledges and assesses severity. A SEV1 or SEV2 goes to the incident lead, who opens a war room and assigns a comms owner; the comms owner posts status updates until the lead declares the incident resolved, then the lead writes the postmortem. Lower severities the on-call engineer fixes alone.
+  subgraph oncall [On-call engineer]
+    paged([Get paged])
+    ack[Acknowledge]
+    sev{SEV1 or SEV2?}:::key
+    fix[Fix it alone]
+  end
+  subgraph lead [Incident lead]
+    room[Open a war room]
+    assign[Assign a comms owner]
+    resolved[Declare resolved]
+    postmortem[Write the postmortem]
+  end
+  subgraph comms [Comms owner]
+    updates[Post status updates]
+  end
+  paged --> ack --> sev
+  sev -->|yes| room
+  sev -->|no| fix
+  room --> assign --> updates
+  updates -->|until resolved| resolved
+  resolved --> postmortem

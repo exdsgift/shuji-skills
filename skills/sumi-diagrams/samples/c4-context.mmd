@@ -1,0 +1,15 @@
+C4Context
+  accDescr: Employees submit expenses to the expense app and finance staff approve and export them. The app reads the employee directory from Okta, posts journal entries to NetSuite and sends notification emails through Amazon SES.
+  title Expense app: system context
+  Person(employee, "Employee", "Submits expenses")
+  System(app, "Expense app", "Expense submission, approval and export")
+  System_Ext(okta, "Okta", "Employee directory")
+  Person(finance, "Finance staff", "Approves and exports expenses")
+  System_Ext(netsuite, "NetSuite", "Journal entries")
+  System_Ext(ses, "Amazon SES", "Notification emails")
+  Rel(employee, app, "Submits expenses")
+  Rel(finance, app, "Approves and exports")
+  Rel(app, okta, "Reads directory")
+  Rel(app, netsuite, "Posts journal entries")
+  Rel(app, ses, "Sends emails")
+  UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
