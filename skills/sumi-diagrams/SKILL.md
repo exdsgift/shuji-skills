@@ -1,6 +1,6 @@
 ---
 name: sumi-diagrams
-description: Writes diagrams and charts in Mermaid syntax and renders them with Pele, the fast Mermaid renderer behind Obsidian, as one SVG that follows the light and dark theme, or as a Mermaid block checked for an Obsidian note, after checking syntax, overlaps and size. Picks among all 32 Pele types (flowchart, sequence, state, class, ER, C4, architecture, swimlane, gantt, timeline, git graph, mindmap, pie, XY, sankey, quadrant, radar, wardley and more) by the question asked, in a minimal grey look with one accent. Use it whenever someone asks to draw, diagram or visualize something from code, docs or numbers, a Mermaid diagram, a diagram or chart for a README, a report, a doc or a note, an architecture, flow, sequence, state machine, schema, plan or data chart drawn as text, or to fix or restyle existing Mermaid, even if they name no tool. Not for draw.io files or hand-laid presentation figures.
+description: Writes diagrams and charts in Mermaid syntax and renders them with Pele, the fast Mermaid renderer behind Obsidian, as one SVG that follows the light and dark theme, or as a Mermaid block checked for an Obsidian note or a GitHub pull request, after checking syntax, overlaps and size. Picks among all 32 Pele types (flowchart, sequence, state, class, ER, C4, architecture, swimlane, gantt, timeline, git graph, mindmap, pie, XY, sankey, quadrant, radar, wardley and more) by the question asked, in a minimal grey look with one accent. Use it whenever someone asks to draw, diagram or visualize something from code, docs or numbers, a Mermaid diagram, a diagram or chart for a README, a pull request, a report, a doc or a note, an architecture, flow, sequence, state machine, schema, plan or data chart drawn as text, or to fix or restyle existing Mermaid, even if they name no tool. Not for draw.io files or hand-laid presentation figures.
 ---
 
 # Sumi diagrams
@@ -9,8 +9,8 @@ A diagram here is Mermaid text rendered by [Pele](https://pele.run), drawn for e
 words, and one orange accent on the arrowheads, so the eye follows the flow. Charts colour their series with the
 Okabe-Ito colours. The source is always the Mermaid text; everything else is made from it by `scripts/render.mjs`.
 
-The target is in [samples/](samples/): each `.mmd` beside a picture of its light and dark theme. Look at the one
-closest to the request before you write.
+The target is in [samples/](samples/): each `.mmd` beside a picture of its light and dark theme (the
+`pull-request-` ones as GitHub draws them). Look at the one closest to the request before you write.
 
 ## Process
 
@@ -21,13 +21,19 @@ closest to the request before you write.
 3. **Choose the type** by the question the diagram answers, then read its family's reference. Done when you can say
    the question in one sentence; two questions make two diagrams.
 4. **Write the source** as `name.mmd` (or the block in the note), following the look and the words below.
-5. **Check it:** `node scripts/render.mjs name.mmd --destination svg|readme|note` (a Markdown note:
+5. **Check it:** `node scripts/render.mjs name.mmd --destination svg|readme|note|pr` (a Markdown note:
    `node scripts/render.mjs note.md`). Fix every problem it lists and run it again. Done when it prints
    `check: clean`. The first run installs Pele 1.6.0 from npm; without network, deliver the source and say it was not
    checked.
 6. **Look at both previews** the script lists (light and dark). Fix what the check cannot see: a crowded corner, a
    label far from its edge, an order that reads backwards. Without a browser it says so: then open the SVG yourself.
 7. **Deliver** the files with a one-line caption and the alt text (the `accTitle`).
+8. **Offer pull request diagrams, once per repository.** After the first diagram you deliver in a Git repository on
+   GitHub, look for `sumi-diagrams:` in its agent instructions (`AGENTS.md`, `CLAUDE.md`, or the file it uses). When
+   it is not there, ask one question: should its pull requests get a diagram when they change something worth seeing,
+   by a short rule written into that file (or into a new `AGENTS.md` when it has none)? Yes adds
+   [the repository rule](references/pull-requests.md#the-repository-rule); no adds
+   `<!-- sumi-diagrams: no pull request diagrams -->` to the file, if there is one. Write nothing before the answer.
 
 ## Destinations
 
@@ -35,10 +41,13 @@ closest to the request before you write.
 | --- | --- | --- |
 | An Obsidian note, or any host that renders Mermaid with Pele | the ` ```mermaid ` block, in the note | `render.mjs note.md` |
 | A README on GitHub or GitLab | `name-light.svg`, `name-dark.svg`, the `<picture>` it prints, and `name.mmd` beside them | `--destination readme` |
+| A pull request on GitHub | the ` ```mermaid ` block in its description, the change marked as [pull-requests](references/pull-requests.md) says | `--destination pr` |
 | A docs site, a wiki, a slide, a chat, or anywhere unknown | `name.svg` (one file for both themes) and `name.mmd` | `--destination svg` (default) |
 
-GitHub and GitLab draw Mermaid blocks with Mermaid.js, not Pele: another layout, none of this look, and none of the
-twelve beta types. A README gets the SVG pair, which follows the theme the reader chose on GitHub.
+GitHub draws Mermaid blocks with Mermaid.js 12.1, which reads the same syntax as Pele but lays it out its own way, in
+its own theme. A README gets the SVG pair, which keeps this look and follows the theme the reader chose on GitHub. A
+pull request gets the block, which needs no file: read [pull-requests](references/pull-requests.md) first, for when a
+change deserves a diagram, which type, and how to mark the change.
 
 ## Choose the type
 
@@ -87,7 +96,7 @@ split it.
 The theme is fixed and lives in [assets/theme.css](assets/theme.css); `render.mjs` embeds it. Your part:
 
 - Set no colours. A `classDef`, `style` or `linkStyle` with a colour stays that colour in both themes, so the dark
-  theme breaks; the script reports them.
+  theme breaks; the script reports them. A pull request is the one exception: it uses two classes of its own.
 - Mark at most one node `:::key`, the one the diagram is about (the service a change touches, the failing step): it
   gets an outline in the accent. In a tree view the same mark is `:::highlight`. Mark `:::ext` what is outside the system, optional or not built yet: it gets a
   dashed outline. Nothing else carries emphasis.
@@ -151,8 +160,10 @@ Pele 1.6.0 rejects or misreads these, and most fail exactly as in Mermaid:
 ## Files
 
 - [references/](references/): one file per family, with a verified example for every type, its syntax and Pele's
-  quirks. Read the one the type table points to before writing.
+  quirks. Read the one the type table points to before writing; [pull-requests](references/pull-requests.md) for a
+  diagram in a pull request.
 - [scripts/render.mjs](scripts/render.mjs): renders, themes, checks and previews; `--now YYYY-MM-DD` fixes a Gantt's
   today line, `--transparent` drops the background, `--no-preview` skips the browser. Needs Node 20 or later; uses
-  Chrome, Edge or Chromium when it finds one (`CHROME` points at one, `PELE` at another Pele build).
+  Chrome, Edge or Chromium when it finds one (`CHROME` points at one, `PELE` at another Pele build, `MERMAID` at
+  another mermaid.min.js for pull request previews).
 - [samples/](samples/): reviewed results, source and picture.

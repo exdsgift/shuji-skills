@@ -7,7 +7,7 @@
 | Skill | What it does |
 | --- | --- |
 | 🍱 [bento-diagrams](skills/bento-diagrams) · 弁当 | Draws engineering diagrams in Apple's system look: swimlanes and regions on a white or black page, cards with coloured icon tiles, yellow decisions, green outcomes, light and dark in one file, checked for overlaps. Named after the bentō, the lunch box with a compartment for each thing. |
-| 🖌️ [sumi-diagrams](skills/sumi-diagrams) · 墨 | Writes diagrams and charts as Mermaid text rendered by Pele: all 32 types, chosen by the question asked, in grey with one accent on the arrowheads and the Okabe-Ito colours for chart series. Delivers one SVG for both themes, a light and dark pair for a README, or a checked block for an Obsidian note. Named after sumi, the ink of brush painting: grey ink and one vermilion seal. |
+| 🖌️ [sumi-diagrams](skills/sumi-diagrams) · 墨 | Writes diagrams and charts as Mermaid text rendered by Pele: all 32 types, chosen by the question asked, in grey with one accent on the arrowheads and the Okabe-Ito colours for chart series. Delivers one SVG for both themes, a light and dark pair for a README, or a checked block for an Obsidian note or a pull request, where it marks what the change adds. Named after sumi, the ink of brush painting: grey ink and one vermilion seal. |
 ## Install
 
 Any agent ([Claude Code, Codex, Cursor, Gemini CLI, Copilot and more](https://github.com/vercel-labs/skills)),

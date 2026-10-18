@@ -70,7 +70,7 @@ swimlane-beta LR
 - `swimlane-beta LR` draws lanes as rows; `TB` as columns. Below 640 px the flow turns downward and the lane
   headings go across the top.
 - A swimlane with more than five lanes or twelve steps gets wide: split it by phase.
-- Beta: GitHub's Mermaid may not draw it. For a README, deliver the SVG.
+- GitHub draws it too, with Mermaid.js 12.1 and in its own look: for a README, deliver the SVG.
 
 ## Agentflow
 

@@ -5,6 +5,29 @@ What changed in sumi-diagrams, newest first. There are no version numbers: each 
 
 ## 2026-10-18
 
+### Diagrams in pull requests
+
+- A new destination, `--destination pr`, for a Mermaid block in a pull request's description. GitHub draws it with
+  Mermaid.js 12.1.0, the syntax Pele reads, so the script checks it with Pele, then draws it with that Mermaid.js in
+  GitHub's light and dark theme for a preview. Mermaid.js is fetched once from jsDelivr, about 5 MB, and checked
+  against its SHA-256.
+- `references/pull-requests.md` says when a change deserves a diagram and which one: a flowchart for who calls whom,
+  a sequence for a new exchange, a state, ER or class diagram for states, schema and types, a git graph for a
+  backport or a stack, bars for numbers before and after. A fix inside one function, a dependency bump or a config
+  change gets none.
+- The change is marked in a way both GitHub themes read: `:::changed` outlines what the pull request adds or changes
+  in orange, `:::removed` dashes what it deletes, and new messages in a sequence sit in a translucent orange `rect`.
+  The script rejects `:::key` and `:::ext`, which GitHub cannot draw, any other class, any fill, and a diagram of more
+  than 15 nodes.
+- After the first diagram in a repository on GitHub, the skill asks once whether its pull requests should get one. A
+  yes writes a short rule into `AGENTS.md`, or the instructions file the repository uses, so any agent writing a pull
+  request draws it from what it has already gathered; a no writes a one-line marker, so no agent asks again.
+- `samples/` adds two pull request results, a flowchart and a sequence, pictured as GitHub draws them; the README
+  shows the flowchart as a live block, drawn by GitHub.
+- The script no longer warns that GitHub may not draw the new Mermaid types: GitHub draws them with Mermaid.js 12.1,
+  in its own look. A README still gets the SVG pair, which keeps this one.
+- `--out` creates its folder when it does not exist, instead of stopping with an error.
+
 ### First release
 
 - Writes diagrams and charts as Mermaid text and renders them with Pele 1.6.0, installed from npm on the first run.
