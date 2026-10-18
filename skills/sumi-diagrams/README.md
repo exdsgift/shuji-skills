@@ -211,6 +211,9 @@ Then ask in plain words:
 The script needs Node 20 or later and installs Pele 1.6.0 from npm on its first run. It uses Chrome, Edge or Chromium
 for the font check and the previews when it finds one, and says what it skipped when it does not.
 
+When the skill itself fails, not your request or your machine, the agent offers to report it here as an issue. It
+shows you the draft, which leaves out your code and your words, and posts it only after you say yes.
+
 ## Sources
 
 - Pele, the renderer: [pele.run](https://pele.run) and [obsidianmd/pele](https://github.com/obsidianmd/pele), version

@@ -1,0 +1,45 @@
+name: Skill defect
+description: A skill's script, check or instruction gives a wrong result.
+title: "<skill>: <what fails>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      placeholder: sumi-diagrams
+    validations:
+      required: true
+  - type: textarea
+    id: ran
+    attributes:
+      label: What was run
+      description: The command, or the step of the skill, with a minimal input. Leave out code, names and text from your project.
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: The error text or the wrong result.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was expected
+      description: The rule or file of the skill that says so, when there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+      description: A diff, when the cause is known.
+      render: diff
+  - type: input
+    id: environment
+    attributes:
+      label: Agent and system
+      placeholder: Claude Code 2.1, macOS 15, Node 22

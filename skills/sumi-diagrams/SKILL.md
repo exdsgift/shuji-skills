@@ -167,3 +167,27 @@ Pele 1.6.0 rejects or misreads these, and most fail exactly as in Mermaid:
   Chrome, Edge or Chromium when it finds one (`CHROME` points at one, `PELE` at another Pele build, `MERMAID` at
   another mermaid.min.js for pull request previews).
 - [samples/](samples/): reviewed results, source and picture.
+
+## When the skill is at fault
+
+When something fails because of this skill, not because of the request, the project or the machine, offer to report it
+where the skill is kept. A fault of the skill is a script that crashes or rejects valid input, a check that passes
+what a rule here forbids, two instructions or an instruction and a sample that disagree, or a rule followed to the
+letter that gives a wrong result. A missing Node, browser or network, a fact the request lacks, or a slip of yours
+that a second try fixes is not one.
+
+1. Finish the user's task, or set it aside, first: the report never replaces it.
+2. Look for the same report: `gh issue list --repo exdsgift/shuji-skills --state all --search "<words of the error>"`.
+   When one exists, offer a comment with what is new instead of a new issue.
+3. Draft it: the title `sumi-diagrams: <what fails, in a few words>`, and a body with what you ran, what happened (the
+   error text), what you expected and the rule or file here that says so, the agent and system, and a diff when you
+   know the cause. Leave the user's work out: no path outside the skill, and no code, names, numbers or diagram text
+   from their project. Describe the input in general words ("a flowchart with a quoted label holding a colon") or
+   write a minimal one of your own.
+4. Show the draft and ask once: "This looks like a defect in sumi-diagrams. Open this issue on
+   github.com/exdsgift/shuji-skills?" Post nothing before a yes. A no ends it, and you do not ask again about the same
+   fault.
+5. On a yes, run `gh issue create --repo exdsgift/shuji-skills --title "<title>" --body-file -` with the draft and
+   give the link. Without `gh`, or signed out, give the user
+   `https://github.com/exdsgift/shuji-skills/issues/new?template=skill-defect.yml&skill=sumi-diagrams` to open, with
+   the draft to paste.

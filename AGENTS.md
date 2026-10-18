@@ -10,6 +10,10 @@ infrastructure minimal.
   name matches the folder, uses lowercase letters, digits and single hyphens, and is 1 to 64 characters with no
   leading or trailing hyphen. The description is 1 to 1024 characters, written in the third person, and says what the
   skill does and when to use it, with the main use case first.
+- End every `SKILL.md` with a "When the skill is at fault" section, copied from an existing skill with its name
+  changed: it has the agent draft an issue for a defect of the skill itself, without the user's content, and open it
+  on this repository only after the user says yes. `.github/ISSUE_TEMPLATE/skill-defect.yml` is the form its fallback
+  link opens, and labels the issue `bug` and `needs-triage`.
 - Keep `SKILL.md` under 500 lines, with the most important rules at the top. Move details into `references/`, link
   each reference file directly from `SKILL.md`, and say when to read it.
 - Give every skill a `samples/` folder showing what it produces, picked from reviewed evaluation results and
