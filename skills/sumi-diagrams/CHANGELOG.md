@@ -1,9 +1,16 @@
 # Changelog
 
 What changed in sumi-diagrams, newest first. There are no version numbers: each push to `main` is a release, and
-`npx skills update` or `claude plugin update sumi-diagrams@shuji` brings it.
+`npx skills update` or `claude plugin update shuji@shuji` brings it.
 
 ## 2026-10-18
+
+### One Claude Code plugin
+
+- In Claude Code the skill now comes in the `shuji` plugin, with every other shuji skill, and runs as
+  `/shuji:sumi-diagrams`. If you installed `sumi-diagrams@shuji`, run
+  `claude plugin install shuji --marketplace exdsgift/shuji-skills` once to move to it. `npx skills` installs are
+  unchanged.
 
 ### Diagrams in pull requests
 

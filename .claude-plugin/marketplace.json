@@ -7,22 +7,18 @@
   },
   "plugins": [
     {
-      "name": "bento-diagrams",
+      "name": "shuji",
       "source": "./",
       "skills": [
-        "./skills/bento-diagrams"
-      ],
-      "license": "MIT",
-      "description": "Draws engineering diagrams in Apple's system look as one .drawio file that follows the light and dark themes."
-    },
-    {
-      "name": "sumi-diagrams",
-      "source": "./",
-      "skills": [
+        "./skills/bento-diagrams",
         "./skills/sumi-diagrams"
       ],
       "license": "MIT",
-      "description": "Writes Mermaid diagrams and charts rendered by Pele as one SVG for both themes, or a checked block for an Obsidian note or a pull request, in a minimal grey look with one accent."
+      "description": "Diagram skills: bento-diagrams draws engineering diagrams in Apple's system look as one .drawio file, sumi-diagrams writes Mermaid diagrams and charts rendered by Pele in a minimal grey look with one accent."
     }
-  ]
+  ],
+  "renames": {
+    "bento-diagrams": "shuji",
+    "sumi-diagrams": "shuji"
+  }
 }
