@@ -1,6 +1,7 @@
 /* The sumi-diagrams theme, embedded into every SVG by scripts/render.mjs.
    Neutral greys carry the diagram; the accent marks arrowheads, the key node and the Gantt today line; chart series
-   wear the Okabe-Ito colours (Okabe & Ito 2008) in a fixed order. Every colour is a CSS variable, so one file follows
+   wear the Okabe-Ito colours (Okabe & Ito 2008) in a fixed order, and a picture with a single series colour wears
+   the accent instead (render.mjs adds that rule when it counts one). Every colour is a CSS variable, so one file follows
    the light and the dark theme. render.mjs splits this file at the @light, @dark and @rules markers. */
 
 /* @light */

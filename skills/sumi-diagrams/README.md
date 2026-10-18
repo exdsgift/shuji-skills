@@ -53,8 +53,8 @@ has, including the new ones (swimlane, agentflow, tree view, wardley, venn, ishi
 Sumi (墨) is the ink of East Asian brush painting: a picture in grey ink, and one vermilion seal. These diagrams work
 the same way. Boxes, lines and words are grey. One orange accent marks the arrowheads, so the eye follows the flow,
 and outlines the one node a diagram is about. A dashed outline marks what is outside the system. Nothing else carries colour: no fills
-by hand, no traffic lights. Charts colour their series with the Okabe-Ito colours, ordered so that neighbours stay
-apart for colour-blind readers.
+by hand, no traffic lights. A chart with one series wears the same orange; with several, the series take the
+Okabe-Ito colours, ordered so that neighbours stay apart for colour-blind readers.
 
 <p align="center">
   <picture>

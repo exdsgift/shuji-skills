@@ -85,7 +85,9 @@ const STYLE = {
   light: squeeze(part("light") + part("rules")),
   dark: squeeze(part("light") + part("dark") + part("rules")),
 };
-const themed = (svg, mode) => svg.replace(/^<svg[^>]*>/, (open) => `${open}<style>${STYLE[mode]}${transparent ? ".pele{background:none}" : ""}</style>`);
+// a picture that uses one series colour wears the accent instead: one colour in the theme, not a second one
+const single = (svg) => { const used = new Set([...svg.matchAll(/--pele-series-(\d)/g)].map((m) => m[1])); return used.size === 1 ? `.pele{--pele-series-${[...used][0]}:var(--accent)}` : ""; };
+const themed = (svg, mode) => svg.replace(/^<svg[^>]*>/, (open) => `${open}<style>${STYLE[mode]}${single(svg)}${transparent ? ".pele{background:none}" : ""}</style>`);
 const xml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // --- the source, before Pele sees it ---------------------------------------------------------------------------------
