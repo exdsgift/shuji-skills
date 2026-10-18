@@ -1,0 +1,11 @@
+stateDiagram-v2
+  accTitle: Document renderer states
+  accDescr: The renderer starts idle and parses when the user types; a valid source is rendered and an invalid one shows an error; it returns to idle when rendering completes or when the user edits after an error.
+  direction LR
+  [*] --> Idle
+  %% declared before the forward path so its return runs above Parsing and does not cross "source invalid"
+  Rendering --> Idle : render completes
+  Idle --> Parsing : user types
+  Parsing --> Rendering : source valid
+  Parsing --> Error : source invalid
+  Error --> Idle : user edits

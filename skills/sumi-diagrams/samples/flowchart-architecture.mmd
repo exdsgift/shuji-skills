@@ -1,0 +1,12 @@
+flowchart LR
+  accTitle: Checkout architecture
+  accDescr: Browsers reach the API gateway through Cloudflare. The gateway routes to the cart, payment and order services. The payment service, changed in this PR, charges cards through Stripe and sends a webhook to the order service. Orders are stored in Postgres, carts in Redis.
+  browsers([Browsers]) --> cloudflare[Cloudflare]:::ext
+  cloudflare --> gateway[API gateway]
+  gateway --> cart[Cart service]
+  gateway --> payment[Payment service]:::key
+  gateway --> order[Order service]
+  payment -->|charges cards| stripe[Stripe]:::ext
+  payment -.->|webhook| order
+  cart --> redis[(Redis)]
+  order --> postgres[(Postgres)]

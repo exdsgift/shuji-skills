@@ -1,0 +1,34 @@
+erDiagram
+  accTitle: Billing data model
+  accDescr: A customer holds subscriptions, each priced by a plan; a subscription is billed by invoices, and an invoice is paid by payments. Every foreign key is nullable, so each child row may have no parent.
+  customers |o..o{ subscriptions : holds
+  plans |o..o{ subscriptions : prices
+  subscriptions |o..o{ invoices : "billed by"
+  invoices |o..o{ payments : "paid by"
+  customers {
+    uuid id PK
+    text email UK
+    text name
+  }
+  plans {
+    text code PK
+    int price_cents
+    text interval
+  }
+  subscriptions {
+    uuid id PK
+    uuid customer_id FK
+    text plan_code FK
+    text status
+  }
+  invoices {
+    uuid id PK
+    uuid subscription_id FK
+    int total_cents
+    date due_on
+  }
+  payments {
+    uuid id PK
+    uuid invoice_id FK
+    int amount_cents
+  }

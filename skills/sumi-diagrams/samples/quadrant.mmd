@@ -1,0 +1,16 @@
+quadrantChart
+  accTitle: Tech debt by effort and impact
+  accDescr: Missing DB indexes (effort 2, impact 8) and flaky e2e tests (effort 3, impact 9) are cheap and high impact, so they come first. The monolith split (10, 8) and the Python 3.9 upgrade (6, 7) are high impact but costly, so they need planning. The legacy admin UI (7, 2) costs a lot for little, and log noise (2, 3) is cheap but barely matters.
+  title Tech debt: effort and impact (scores 1 to 10)
+  x-axis Low effort --> High effort
+  y-axis Low impact --> High impact
+  quadrant-1 Plan it
+  quadrant-2 Do it now
+  quadrant-3 Leave it
+  quadrant-4 Question it
+  Flaky e2e tests: [0.25, 0.85]
+  Missing DB indexes: [0.15, 0.75]
+  Python 3.9 upgrade: [0.55, 0.65]
+  Monolith split: [0.95, 0.75]
+  Legacy admin UI: [0.65, 0.15]
+  Log noise: [0.15, 0.25]

@@ -1,0 +1,19 @@
+sequenceDiagram
+  accTitle: Authorization code flow with PKCE
+  accDescr: The backend sends the browser to the identity provider with a code challenge, gets the code back on the redirect, and swaps the code, the verifier and the client secret for tokens, which it keeps.
+  participant B as Browser
+  participant App as Backend
+  participant IdP as Identity provider
+  B->>App: Sign in
+  App->>App: Create code_verifier and code_challenge
+  App-->>B: 302 to /authorize (code_challenge)
+  B->>IdP: GET /authorize (code_challenge)
+  Note over B,IdP: The user signs in
+  IdP-->>B: 302 to redirect URI (code)
+  B->>App: GET redirect URI (code)
+  activate App
+  App->>IdP: POST /token (code, verifier, secret)
+  IdP->>IdP: Check verifier against challenge
+  IdP-->>App: Tokens
+  deactivate App
+  Note over App: Holds the tokens

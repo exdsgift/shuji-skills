@@ -1,0 +1,16 @@
+wardley-beta
+  accTitle: Internal developer platform value chain
+  accDescr: Developers need to ship services, which depends on a custom-built deploy pipeline. The pipeline depends on a bought build system and on Kubernetes clusters, which are moving from product to commodity. The clusters run on commodity cloud compute.
+  title Internal developer platform
+  anchor Developers [0.95, 0.50]
+  component Ship services [0.82, 0.45]
+  component Deploy pipeline [0.65, 0.32] (build)
+  component Build system [0.52, 0.56] (buy)
+  component Kubernetes clusters [0.28, 0.68]
+  component Cloud compute [0.10, 0.88]
+  Developers -> Ship services
+  Ship services -> Deploy pipeline
+  Deploy pipeline -> Build system
+  Deploy pipeline -> Kubernetes clusters
+  Kubernetes clusters -> Cloud compute
+  evolve Kubernetes clusters 0.84
