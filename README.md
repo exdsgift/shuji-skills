@@ -21,15 +21,16 @@ npx skills add exdsgift/shuji-skills --skill sumi-diagrams
 Add `-g` to install for every project and `-a claude-code` (or `-a codex`, and so on) to pick the agent without a
 prompt. `npx skills update` pulls new versions.
 
-Claude Code, as a plugin from this repository's marketplace:
+Claude Code, every skill as one plugin from this repository's marketplace:
 
 ```bash
-claude plugin install bento-diagrams --marketplace exdsgift/shuji-skills
-claude plugin install sumi-diagrams --marketplace exdsgift/shuji-skills
+claude plugin install shuji --marketplace exdsgift/shuji-skills
 ```
 
-`claude plugin update bento-diagrams@shuji` pulls new versions. A plugin's skills carry its name as a prefix, so the
-skill runs as `/bento-diagrams:bento-diagrams`.
+The skills run as `/shuji:bento-diagrams` and `/shuji:sumi-diagrams`, or on their own when a request fits. To receive
+new versions without asking, open `/plugin`, select `shuji` under Marketplaces and select Enable auto-update; otherwise
+`claude plugin update shuji@shuji` pulls them. If you installed `bento-diagrams@shuji` or `sumi-diagrams@shuji`
+before, run the install command above once: it replaces them.
 
 Or copy a skill's folder into your agent's skills directory: `~/.claude/skills/` for Claude Code, `~/.agents/skills/`
 for Codex.

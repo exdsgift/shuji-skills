@@ -1,9 +1,14 @@
 # Changelog
 
 What changed in bento-diagrams, newest first. There are no version numbers: each push to `main` is a release, and
-`npx skills update` or `claude plugin update bento-diagrams@shuji` brings it.
+`npx skills update` or `claude plugin update shuji@shuji` brings it.
 
 ## 2026-10-18
+
+- In Claude Code the skill now comes in the `shuji` plugin, with every other shuji skill, and runs as
+  `/shuji:bento-diagrams`. If you installed `bento-diagrams@shuji`, run
+  `claude plugin install shuji --marketplace exdsgift/shuji-skills` once to move to it. `npx skills` installs are
+  unchanged.
 
 - The description leaves Mermaid, and diagrams kept as text in Markdown, to the new sumi-diagrams skill, so an agent
   with both installed picks one of them for a request instead of either.

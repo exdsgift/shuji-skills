@@ -142,10 +142,10 @@ Node.js:
 npx skills add exdsgift/shuji-skills --skill bento-diagrams
 ```
 
-Claude Code, as a plugin:
+Claude Code, as the `shuji` plugin, which brings every shuji skill and runs this one as `/shuji:bento-diagrams`:
 
 ```bash
-claude plugin install bento-diagrams --marketplace exdsgift/shuji-skills
+claude plugin install shuji --marketplace exdsgift/shuji-skills
 ```
 
 Then ask in plain words:
