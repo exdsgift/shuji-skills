@@ -1,0 +1,18 @@
+sequenceDiagram
+  accTitle: Login with a second factor after this pull request
+  accDescr: The web app posts the password to POST /login. When the user has 2FA on, the API now answers 202 with a challenge id instead of the session cookie; the TOTP form posts the 6-digit code with that id to POST /login/totp, the API checks it with the auth service's VerifyTotp and sets the session cookie only when it passes. Users without 2FA get the cookie from POST /login as before.
+  participant Web as Web app
+  participant API
+  participant Auth as Auth service
+  Web->>API: POST /login (password)
+  alt 2FA on
+    rect rgba(240, 83, 26, 0.14)
+      API-->>Web: 202 challenge id
+      Web->>API: POST /login/totp (code, challenge id)
+      API->>Auth: VerifyTotp
+      Auth-->>API: passes
+      API-->>Web: sets session cookie
+    end
+  else 2FA off
+    API-->>Web: sets session cookie
+  end

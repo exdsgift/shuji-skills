@@ -22,7 +22,7 @@
         "./skills/sumi-diagrams"
       ],
       "license": "MIT",
-      "description": "Writes Mermaid diagrams and charts rendered by Pele as one SVG for both themes, or a checked block for an Obsidian note, in a minimal grey look with one accent."
+      "description": "Writes Mermaid diagrams and charts rendered by Pele as one SVG for both themes, or a checked block for an Obsidian note or a pull request, in a minimal grey look with one accent."
     }
   ]
 }

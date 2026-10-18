@@ -5,7 +5,8 @@
   Pictures: showcase/<name>.mmd is the source of showcase/<name>-light.svg and showcase/<name>-dark.svg. To render one
   again, run
       node scripts/render.mjs showcase/<name>.mmd --destination readme --out showcase --now 2026-10-18
-  The sources come from reviewed evaluation results, the same as samples/.
+  The sources come from reviewed evaluation results, the same as samples/. The block under "In a pull request" is
+  not a picture: GitHub draws it, as it would in a pull request; it is samples/pull-request-flowchart.mmd.
 
   Keep the pictures few and large, each a different type. A pair sits on one row at one height: each picture's width
   is 99 % times its aspect ratio (the width and height of its SVG) over the sum of the pair's ratios: sequence 1.563
@@ -105,8 +106,10 @@ Each family has its reference in [references/](references/): a verified example 
 | An Obsidian note | the Mermaid block in the note, checked at note and phone width |
 | A README on GitHub or GitLab | a light and a dark SVG, the `<picture>` to paste, and the source |
 | A docs site, a wiki, a slide | one SVG for both themes, and the source |
+| A pull request on GitHub | a Mermaid block for the description, the change outlined in orange |
 
-GitHub draws Mermaid blocks with Mermaid.js, not Pele, so a README gets the pictures.
+GitHub draws Mermaid blocks with Mermaid.js, in its own look, so a README gets the pictures, which keep this one; a
+pull request gets the block.
 
 <p align="center">
   <picture>
@@ -116,6 +119,40 @@ GitHub draws Mermaid blocks with Mermaid.js, not Pele, so a README gets the pict
 </p>
 
 <p align="center"><sub>The states of a renderer, drawn for a docs page.</sub></p>
+
+## In a pull request
+
+A reviewer reads a change faster when they can see it. When a pull request changes who calls whom, a message
+exchange, states, the schema, types or branch history, the skill puts one Mermaid block in its description, built
+from what the pull request work already gathered: the commits and the diff. What the pull request adds is outlined
+in the same orange, and what it deletes is dashed, in GitHub's light theme and its dark one alike. GitHub draws the
+block with Mermaid.js 12.1, which reads the syntax Pele reads, so the script checks it with Pele and previews it with
+that Mermaid.js. A fix inside one function, a dependency bump or a config change gets no diagram.
+
+```mermaid
+flowchart TD
+  accTitle: Webhook delivery after this pull request
+  accDescr: The orders and invoices API handlers call enqueueDelivery, which puts each webhook on the deliveries queue in Redis instead of sending it during the request. A new delivery worker reads the queue and POSTs to the customer's endpoint; on a 5xx or a timeout it re-enqueues the delivery with exponential backoff, and after 8 attempts it writes it to the new dead_letters table. The inline sender is removed.
+  orders[Orders API] -->|enqueueDelivery| queue[[deliveries queue in Redis]]
+  invoices[Invoices API] -->|enqueueDelivery| queue
+  queue --> worker[Delivery worker]
+  worker -->|POST| endpoint([Customer endpoint])
+  worker -->|after 8 attempts| dead[(dead_letters table)]
+  worker -->|5xx or timeout: retry with backoff| queue
+  orders -.- send[Inline sender]:::removed
+  invoices -.- send
+  class queue,worker,dead changed
+  classDef changed stroke:#f0531a,stroke-width:2px
+  classDef removed stroke-dasharray:4 3
+```
+
+<p align="center"><sub>A pull request that moves webhooks to a queue, drawn by an agent with this skill. GitHub draws
+the block above itself, in the theme you read it in.</sub></p>
+
+The first time it draws in a repository on GitHub, the skill asks once whether its pull requests should get one. A yes
+writes a short rule into `AGENTS.md`, or the instructions file the repository uses, so any agent preparing a pull
+request adds the diagram, with Matt Pocock's [pr skill](https://github.com/mattpocock/skills/tree/main/skills/engineering/pr)
+or without it; a no writes one line, so no agent asks again.
 
 ## Checked like code
 
@@ -168,7 +205,8 @@ Then ask in plain words:
 
 > Add an architecture diagram of the checkout service to the README.<br>
 > Put a sequence diagram of the OAuth flow in my note auth.md.<br>
-> Chart these latency numbers for the weekly report.
+> Chart these latency numbers for the weekly report.<br>
+> Add a diagram of what this branch changes to the PR description.
 
 The script needs Node 20 or later and installs Pele 1.6.0 from npm on its first run. It uses Chrome, Edge or Chromium
 for the font check and the previews when it finds one, and says what it skipped when it does not.
@@ -184,6 +222,8 @@ for the font check and the previews when it finds one, and says what it skipped 
   IEEE Transactions on Visualization and Computer Graphics 15(6), 2009,
   [doi:10.1109/TVCG.2009.113](https://doi.org/10.1109/TVCG.2009.113); colour distances in
   [Oklab](https://bottosson.github.io/posts/oklab/) (B. Ottosson, 2020).
+- Pull requests: GitHub Docs, [Creating diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams);
+  the Mermaid.js version, 12.1.0, read from GitHub's Mermaid viewer on 18 October 2026.
 - Contrast: W3C, WCAG 2.2, [1.4.11 Non-text Contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
   and [1.4.1 Use of Color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html).
 

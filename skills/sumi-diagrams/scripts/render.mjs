@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 // Render a Mermaid diagram with Pele, theme it, check it, and preview it.
 //
-//   node render.mjs diagram.mmd [--destination svg|readme|note] [--out DIR] [--now YYYY-MM-DD] [--transparent] [--no-preview]
-//   node render.mjs note.md     (checks every ```mermaid block of a Markdown file, as a note)
+//   node render.mjs diagram.mmd [--destination svg|readme|note|pr] [--out DIR] [--now YYYY-MM-DD] [--transparent] [--no-preview]
+//   node render.mjs note.md     (checks every ```mermaid block of a Markdown file, as a note; add --destination pr for a PR body)
 //
 // svg     writes diagram.svg: one file that follows the light and the dark theme, on a solid background.
 // readme  writes diagram-light.svg and diagram-dark.svg and prints the <picture> to paste into the README.
 // note    writes no file: the host (Obsidian) draws the block with Pele; the block is checked at note and phone width.
+// pr      writes no file: GitHub draws the block in a pull request with Mermaid.js 12.1.0, which reads the same syntax
+//         as Pele; the block is checked with Pele and previewed with that Mermaid.js in GitHub's light and dark theme.
 //
 // Pele 1.6.0 comes from npm on the first run, into ~/.cache/sumi-diagrams (PELE_CACHE moves it, PELE points at
-// another build). Previews need Chrome, Edge or Chromium (CHROME points at one); without a browser the checks that
-// need real fonts are skipped and the script says so. Exits 1 while a check finds a problem: a diagram is done when
-// it prints "check: clean".
+// another build); for pr, Mermaid.js 12.1.0 comes from jsDelivr into the same folder, checked against its SHA-256
+// (MERMAID points at another mermaid.min.js). Previews need Chrome, Edge or Chromium (CHROME points at one); without a
+// browser the checks that need real fonts are skipped and the script says so. Exits 1 while a check finds a problem:
+// a diagram is done when it prints "check: clean".
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -23,26 +26,32 @@ const PELE_VERSION = "1.6.0";
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Cantarell, "Helvetica Neue", Helvetica, Arial, sans-serif';
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
 // the width a reader gives the picture at each destination, and the smallest text worth printing
-const WIDTH = { svg: 1000, readme: 880, note: 700, phone: 375 };
+const WIDTH = { svg: 1000, readme: 880, note: 700, phone: 375, pr: 800 };
 const MIN_TEXT_PX = 11;
 // the types whose source cannot hold accTitle/accDescr in Pele 1.6.0: they take them as %% comments
 const NO_ACC = new Set(["mindmap", "venn", "block", "sankey", "eventmodeling", "c4"]);
-const BETA = /^(agentflow|architecture|cynefin|ishikawa|radar|railroad|swimlane|treemap|treeView|usecase|venn|wardley)$/;
 // words Pele's flowchart grammar keeps for itself: none of them can be a node id
 const RESERVED = "end|call|click|style|class|classDef|subgraph|graph|flowchart|linkStyle|href|interpolate|_self";
 const GRAPHS = /^(flowchart|swimlane|agentflow|state|class|er|requirement|c4|architecture|usecase|block)$/;
+// GitHub draws a ```mermaid block with this Mermaid.js (read from its viewer, October 2026), with these options,
+// in the default theme on white or the dark theme on GitHub's dark page
+const MERMAID = { version: "12.1.0", sha256: "6484afc32872a3aa16cac9a76ba1816a1ed4cc870a6593cc2e17757750f518b2" };
+const GITHUB = { options: { securityLevel: "antiscript", flowchart: { diagramPadding: 48 }, gantt: { useWidth: 1200 }, pie: { useWidth: 1200 }, sequence: { diagramMarginY: 40 } }, light: "#ffffff", dark: "#0d1117" };
+// a pull request diagram marks what the PR touches with these classes only: stroke, so both GitHub themes read it
+const PR_CLASSES = { changed: "classDef changed stroke:#f0531a,stroke-width:2px", removed: "classDef removed stroke-dasharray:4 3" };
+const PR_NODES = 15;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const option = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
 const input = args.find((a, i) => !a.startsWith("--") && !["--destination", "--out", "--now"].includes(args[i - 1]));
 if (!input || !/\.(mmd|md)$/.test(input) || !fs.existsSync(input)) {
-  console.error("usage: node render.mjs diagram.mmd [--destination svg|readme|note] [--out DIR] [--now YYYY-MM-DD] [--transparent] [--no-preview]");
+  console.error("usage: node render.mjs diagram.mmd [--destination svg|readme|note|pr] [--out DIR] [--now YYYY-MM-DD] [--transparent] [--no-preview]");
   process.exit(2);
 }
 const isMarkdown = input.endsWith(".md");
 const destination = option("--destination") || (isMarkdown ? "note" : "svg");
-if (!["svg", "readme", "note"].includes(destination)) { console.error(`unknown destination "${destination}"`); process.exit(2); }
+if (!["svg", "readme", "note", "pr"].includes(destination)) { console.error(`unknown destination "${destination}"`); process.exit(2); }
 const name = path.basename(input).replace(/\.(mmd|md)$/, "");
 const outDir = path.resolve(option("--out") || path.dirname(input));
 const now = option("--now") ? new Date(option("--now")) : new Date();
@@ -75,6 +84,19 @@ async function loadPele() {
   if (version !== PELE_VERSION) console.error(`note: using pele ${version} from ${file}; the skill's rules were checked on ${PELE_VERSION}`);
   return { pele: await import(pathToFileURL(file).href), version };
 }
+// Mermaid.js for the pull request previews: one file, fetched once and checked against its hash
+async function loadMermaid() {
+  if (process.env.MERMAID) return process.env.MERMAID;
+  const file = path.join(path.dirname(process.env.PELE_CACHE || path.join(os.homedir(), ".cache", "sumi-diagrams", "x")), `mermaid-${MERMAID.version}.min.js`);
+  if (fs.existsSync(file)) return file;
+  try {
+    console.error(`fetching mermaid@${MERMAID.version} into ${path.dirname(file)} (first pull request only)`);
+    const body = Buffer.from(await (await fetch(`https://cdn.jsdelivr.net/npm/mermaid@${MERMAID.version}/dist/mermaid.min.js`)).arrayBuffer());
+    if (crypto.createHash("sha256").update(body).digest("hex") !== MERMAID.sha256) return null;
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, body);
+    return file;
+  } catch { return null; }
+}
 
 // --- theme --------------------------------------------------------------------------------------------------------
 const themeFile = fs.readFileSync(path.join(here, "..", "assets", "theme.css"), "utf8");
@@ -104,7 +126,8 @@ function lintSource(src, type, problems, notes) {
   }
   const keys = (body.match(/:::key\b/g) || []).length + (body.match(/^\s*class\s+[^\n]*\bkey\s*$/gm) || []).length;
   if (keys > 1) problems.push(`${keys} nodes are marked :::key: a diagram is about one thing, so keep the key on one node`);
-  for (const line of lines) {
+  if (destination === "pr") prLint(src, body, lines, type, problems, notes);
+  else for (const line of lines) {
     if (/^\s*(classDef|style|linkStyle)\b.*(fill|stroke|color)\s*:\s*(#|rgb|[a-z]+\b)/i.test(line))
       notes.push(`"${line.trim()}" sets a fixed colour, which does not follow the dark theme: use :::key or :::ext, or leave it out`);
   }
@@ -153,8 +176,25 @@ function lintSource(src, type, problems, notes) {
   }
   if (type === "sankey" && /[^\x00-\x7f]/.test(body)) problems.push("sankey node names must be plain ASCII in Pele 1.6.0 (accents, CJK and emoji fail): transliterate them");
   for (const m of body.matchAll(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]{13,}/g)) notes.push(`"${m[0].slice(0, 12)}…" will not wrap (Pele wraps only at spaces): shorten it or add spaces`);
-  if (destination === "readme" && BETA.test(type))
-    notes.push(`${type} is new in Mermaid 12: GitHub draws Mermaid blocks with Mermaid.js and may not draw it, so embed the SVG pair, not the block`);
+}
+// GitHub draws the block in its own theme: only a stroke reads in both, and only the two pull request classes mean anything
+function prLint(src, body, lines, type, problems, notes) {
+  if (/:::(key|ext)\b|^\s*class\s+\S+\s+(key|ext)\s*$/m.test(body))
+    problems.push("GitHub does not carry the sumi theme, so :::key and :::ext draw nothing there: mark what the pull request adds or changes :::changed, and what it deletes :::removed");
+  for (const line of lines) {
+    if (/^\s*(classDef|style)\b.*\b(fill|color)\s*:/i.test(line)) problems.push(`"${line.trim()}" sets a fill or a text colour, which reads in one GitHub theme only: keep to stroke, stroke-width and stroke-dasharray`);
+    const def = line.match(/^\s*classDef\s+(\S+)/);
+    if (def && !PR_CLASSES[def[1]]) problems.push(`"${line.trim()}": a pull request diagram uses two classes, ${Object.values(PR_CLASSES).join(" and ")}`);
+  }
+  for (const [cls, def] of Object.entries(PR_CLASSES)) {
+    const used = new RegExp(`:::${cls}\\b|^\\s*class\\s+\\S+\\s+${cls}\\s*$`, "m").test(body);
+    if (used && !new RegExp(`^\\s*classDef\\s+${cls}\\b`, "m").test(body)) problems.push(`nodes are marked ${cls} but nothing defines it: add "${def}"`);
+  }
+  // Mermaid.js 12.1 prints the first series' values on every series' bars
+  if (type === "xychart" && /showDataLabel\s*:\s*true/.test(src) && (body.match(/^\s*(bar|line)\b/gm) || []).length > 1)
+    problems.push("showDataLabel with two or more series: GitHub's Mermaid.js 12.1 prints the first series' values on the others' bars; leave it out and give the numbers in the caption");
+  if (/^(flowchart|state|class|er)$/.test(type) && !/:::changed\b|^\s*class\s+\S+\s+changed\s*$/m.test(body))
+    notes.push("nothing is marked :::changed: mark what the pull request adds or changes, or say in the caption that this is the shape before it");
 }
 
 // Pele's messages are Mermaid's; add the fix for the ones agents meet most
@@ -267,14 +307,14 @@ function findBrowser() {
   }
   return list.find((p) => p && fs.existsSync(p));
 }
-function chrome(browser, flags) {
+function chrome(browser, flags, budget = 4000) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sumi-diagrams-"));
   try {
-    return execFileSync(browser, ["--headless", "--disable-gpu", "--hide-scrollbars", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=4000", `--user-data-dir=${path.join(tmp, "p")}`, ...flags(tmp)],
+    return execFileSync(browser, ["--headless", "--disable-gpu", "--hide-scrollbars", "--run-all-compositor-stages-before-draw", `--virtual-time-budget=${budget}`, `--user-data-dir=${path.join(tmp, "p")}`, ...flags(tmp)],
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 << 20 });
   } catch { return ""; } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
-const page = (svg, width, dark) => `<!doctype html><meta charset="utf-8"><meta name="color-scheme" content="${dark ? "dark" : "light"}"><style>html,body{margin:0;background:${dark ? "#151515" : "#ffffff"}}#d{width:${width}px}#d svg{display:block;width:100%;height:auto}</style><div id="d">${svg}</div>`;
+const page = (svg, width, dark, bg = dark ? "#151515" : "#ffffff") => `<!doctype html><meta charset="utf-8"><meta name="color-scheme" content="${dark ? "dark" : "light"}"><style>html,body{margin:0;background:${bg}}#d{width:${width}px}#d svg{display:block;width:100%;height:auto;max-width:none!important}</style><div id="d">${svg}</div>`;
 // text that overlaps text, and words that run out of their box, as the reader's browser lays them out
 function browserCheck(browser, svg, width, problems) {
   const probe = `<script>(()=>{const out=[],root=document.querySelector('#d svg');
@@ -290,14 +330,26 @@ document.title='@@'+btoa(unescape(encodeURIComponent(JSON.stringify(out))))+'@@'
   for (const p of JSON.parse(Buffer.from(found[1], "base64").toString("utf8"))) problems.push(p);
   return true;
 }
-function screenshot(browser, svg, width, height, dark, file) {
+function screenshot(browser, svg, width, height, dark, file, bg, sparse = false) {
   for (let n = 0; n < 3; n++) {
-    chrome(browser, (tmp) => { const f = path.join(tmp, "p.html"); fs.writeFileSync(f, page(svg, width, dark));
-      return ["--force-device-scale-factor=2", `--blink-settings=preferredColorScheme=${dark ? 0 : 1}`, `--window-size=${width},${Math.ceil(height)}`, `--screenshot=${file}`, pathToFileURL(f).href]; });
-    // a capture taken before the page painted is one flat colour, which compresses to almost nothing
-    if (fs.existsSync(file) && fs.statSync(file).size > Math.max(1200, width * height * 4 * 0.015)) return true;
+    chrome(browser, (tmp) => { const f = path.join(tmp, "p.html"); fs.writeFileSync(f, page(svg, width, dark, bg));
+      return ["--force-device-scale-factor=2", `--blink-settings=preferredColorScheme=${dark ? 0 : 1}`, `--window-size=${Math.ceil(width)},${Math.ceil(height)}`, `--screenshot=${file}`, pathToFileURL(f).href]; });
+    // a capture taken before the page painted is one flat colour, which compresses to almost nothing (about 0.0045
+    // bytes a pixel); Mermaid's thin lines on a bare page weigh less than Pele's filled boxes
+    if (fs.existsSync(file) && fs.statSync(file).size > Math.max(1200, width * height * 4 * (sparse ? 0.007 : 0.015))) return true;
   }
   return false;
+}
+// the block as GitHub draws it: Mermaid.js renders asynchronously, so take its SVG from the DOM, then photograph that
+function github(browser, lib, src) {
+  const code = JSON.stringify(src).replace(/</g, "\\u003c");
+  const run = `<script src="${pathToFileURL(lib).href}"></script><script>(async()=>{const out={};for(const theme of ["default","dark"]){mermaid.initialize({startOnLoad:false,...${JSON.stringify(GITHUB.options)},theme});try{out[theme]=(await mermaid.render("m"+theme,${code})).svg}catch(e){out.error=String(e.message||e).split("\\n").slice(0,3).join(" ");break}}document.title="@@"+btoa(unescape(encodeURIComponent(JSON.stringify(out))))+"@@"})()</script>`;
+  for (let n = 0; n < 3; n++) {
+    const dom = chrome(browser, (tmp) => { const f = path.join(tmp, "p.html"); fs.writeFileSync(f, `<!doctype html><meta charset="utf-8"><body>${run}`); return ["--allow-file-access-from-files", "--dump-dom", pathToFileURL(f).href]; }, 20000);
+    const found = dom.match(/@@([^@]+)@@/);
+    if (found) return JSON.parse(Buffer.from(found[1], "base64").toString("utf8"));
+  }
+  return null;
 }
 
 // --- one diagram -------------------------------------------------------------------------------------------------------
@@ -335,21 +387,47 @@ async function run() {
       if (t) svg = svg.replace(/^(<svg[^>]*>)/, `$1<title id="${name}-${i}-title">${xml(t.trim())}</title>${d && !/<desc/.test(svg) ? `<desc id="${name}-${i}-desc">${xml(d.trim())}</desc>` : ""}`)
         .replace(/^<svg /, `<svg aria-labelledby="${name}-${i}-title"${d && !/<desc/.test(svg) ? ` aria-describedby="${name}-${i}-desc"` : ""} `);
     }
-    if (GRAPHS.test(result.type)) geometry(svg, problems, notes);
-    fits(result.width, WIDTH[destination], destination === "svg" ? "page" : destination, problems);
+    // GitHub lays the block out with Mermaid.js, so Pele's coordinates say nothing about it: the preview does
+    if (destination === "pr") {
+      const count = boxes(svg).nodes.length;
+      if (GRAPHS.test(result.type) && count > PR_NODES) problems.push(`${count} nodes: a pull request diagram shows the part the PR touches and its neighbours, ${PR_NODES} at most; cut the rest or split it`);
+    } else {
+      if (GRAPHS.test(result.type)) geometry(svg, problems, notes);
+      fits(result.width, WIDTH[destination], destination === "svg" ? "page" : destination, problems);
+    }
     if (destination === "note") {
       const phone = pele.render(src, { ...options, maxWidth: WIDTH.phone });
       if (phone.width > WIDTH.phone) notes.push(`on a phone the picture stays ${Math.round(phone.width)} px wide and is scaled down: fine for a note read on a computer`);
     }
     // files
     const written = [];
+    if (destination === "svg" || destination === "readme") fs.mkdirSync(outDir, { recursive: true });
     const title = (svg.match(/^<svg[^>]*>\s*<title[^>]*>([^<]*)<\/title>/) || [, name])[1];
     const alt = (svg.match(/^<svg[^>]*>\s*<title[^>]*>[^<]*<\/title>\s*<desc[^>]*>([^<]*)<\/desc>/) || [, title])[1];
     if (destination === "svg") { const f = path.join(outDir, `${name}.svg`); fs.writeFileSync(f, themed(svg, "adaptive")); written.push(f); }
     if (destination === "readme") for (const mode of ["light", "dark"]) { const f = path.join(outDir, `${name}-${mode}.svg`); fs.writeFileSync(f, themed(svg, mode)); written.push(f); }
     // the browser: real fonts, then previews of both themes
     const previews = [];
-    if (browser) {
+    if (browser && destination === "pr") {
+      const lib = await loadMermaid();
+      const drawn = lib && github(browser, lib, src);
+      if (!lib) notes.push(`could not fetch mermaid@${MERMAID.version}: the block was checked with Pele, which reads the same syntax, but not drawn as GitHub draws it`);
+      else if (!drawn) notes.push(`the browser at ${browser} returned nothing: the block was not drawn as GitHub draws it`);
+      else if (drawn.error) problems.push(`GitHub's Mermaid.js ${MERMAID.version} rejects the block: ${drawn.error}`);
+      else {
+        const box = (drawn.default.match(/viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/) || []).slice(1).map(Number);
+        if (box.length) {
+          fits(box[0], WIDTH.pr, "pull request", problems);
+          const shown = Math.ceil(Math.min(box[0], WIDTH.pr)), high = (box[1] * shown) / box[0];
+          fs.mkdirSync(previewDir, { recursive: true });
+          for (const [mode, theme] of [["light", "default"], ["dark", "dark"]]) {
+            const f = path.join(previewDir, `${name}${label ? "-" + (i + 1) : ""}-github-${mode}.png`);
+            if (screenshot(browser, drawn[theme], shown, high, mode === "dark", f, GITHUB[mode], true)) previews.push(f);
+          }
+        }
+        if (previews.length < 2) notes.push("the browser did not return both GitHub previews: look at the block in the pull request once it is open");
+      }
+    } else if (browser) {
       const shown = Math.min(result.width, WIDTH[destination]), high = (result.height * shown) / result.width;
       if (!browserCheck(browser, themed(svg, "light"), shown, problems)) notes.push(`the browser at ${browser} returned nothing: font checks skipped`);
       fs.mkdirSync(previewDir, { recursive: true });
@@ -357,11 +435,14 @@ async function run() {
         const f = path.join(previewDir, `${name}${label ? "-" + (i + 1) : ""}-${mode}.png`);
         if (screenshot(browser, themed(svg, "adaptive"), shown, high, mode === "dark", f)) previews.push(f);
       }
-    } else if (!args.includes("--no-preview")) notes.push("no Chrome, Edge or Chromium found (set CHROME): text was not measured in a real font and no preview was made; look at the SVG in a browser before delivering");
+    } else if (!args.includes("--no-preview")) notes.push(destination === "pr"
+      ? "no Chrome, Edge or Chromium found (set CHROME): the block was checked with Pele, which reads the same syntax as GitHub, but not drawn as GitHub draws it"
+      : "no Chrome, Edge or Chromium found (set CHROME): text was not measured in a real font and no preview was made; look at the SVG in a browser before delivering");
     // report
     console.log(`${label}pele ${version} · ${result.type} · ${Math.round(result.width)} x ${Math.round(result.height)} · destination ${destination} (${WIDTH[destination]} px)`);
     for (const f of written) console.log(`wrote ${path.relative(process.cwd(), f) || f}`);
     if (previews.length) console.log(`previews: ${previews.join("  ")}`);
+    if (destination === "pr" && !isMarkdown) console.log(`paste ${path.basename(input)} into the pull request body as a \`\`\`mermaid block, with a one-line caption`);
     if (destination === "readme") console.log(`<picture>\n  <source media="(prefers-color-scheme: dark)" srcset="${name}-dark.svg">\n  <img src="${name}-light.svg" alt="${alt}">\n</picture>`);
     for (const n of [...new Set(notes)]) console.log(`note: ${n}`);
     const unique = [...new Set(problems)];

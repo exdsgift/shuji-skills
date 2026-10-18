@@ -1,0 +1,14 @@
+flowchart TD
+  accTitle: Webhook delivery after this pull request
+  accDescr: The orders and invoices API handlers call enqueueDelivery, which puts each webhook on the deliveries queue in Redis instead of sending it during the request. A new delivery worker reads the queue and POSTs to the customer's endpoint; on a 5xx or a timeout it re-enqueues the delivery with exponential backoff, and after 8 attempts it writes it to the new dead_letters table. The inline sender is removed.
+  orders[Orders API] -->|enqueueDelivery| queue[[deliveries queue in Redis]]
+  invoices[Invoices API] -->|enqueueDelivery| queue
+  queue --> worker[Delivery worker]
+  worker -->|POST| endpoint([Customer endpoint])
+  worker -->|after 8 attempts| dead[(dead_letters table)]
+  worker -->|5xx or timeout: retry with backoff| queue
+  orders -.- send[Inline sender]:::removed
+  invoices -.- send
+  class queue,worker,dead changed
+  classDef changed stroke:#f0531a,stroke-width:2px
+  classDef removed stroke-dasharray:4 3

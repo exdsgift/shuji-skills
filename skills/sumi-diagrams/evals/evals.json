@@ -225,6 +225,90 @@
         "Kubernetes carries an evolve toward commodity",
         "Dependencies run from the anchor down as described, nothing invented"
       ]
+    },
+    {
+      "id": "pr-webhook-flow",
+      "prompt": "I'm preparing the pull request for branch async-webhooks. What I gathered for the description: commits \"Move webhook sending to a queue\", \"Add delivery worker with exponential backoff\", \"Dead-letter deliveries after 8 attempts\", \"Remove inline sender\". Diff against main: src/webhooks/enqueue.ts (new; the orders and invoices API handlers call enqueueDelivery instead of sending), src/webhooks/worker.ts (new; reads the deliveries queue in Redis, POSTs to the customer's endpoint, re-enqueues with backoff on a 5xx or a timeout, writes to the dead_letters table after 8 attempts), src/webhooks/send.ts (deleted; the API used to send the webhook inline, during the request), src/api/orders.ts and src/api/invoices.ts (call enqueueDelivery), migrations/0031_dead_letters.sql (new table). Add a diagram to the summary of the PR description.",
+      "expected_output": "A flowchart block for the PR body: the API handlers, the queue, the worker, the customer endpoint and dead letters, new parts :::changed, the deleted inline sender :::removed and dashed; render.mjs --destination pr clean; a one-line caption.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination pr",
+        "The source is a flowchart with at most 15 nodes, laid out so the GitHub preview fits 800 px",
+        "classDef changed and classDef removed are the only classDefs, copied as the reference gives them",
+        "The queue, the worker and dead letters are marked changed; the inline sender is marked removed",
+        "No :::key or :::ext; accTitle and accDescr present",
+        "Every node comes from the gathered facts",
+        "The reply gives the block and a one-line caption for the summary"
+      ]
+    },
+    {
+      "id": "pr-2fa-sequence",
+      "prompt": "Draw the diagram for the PR that adds two-factor login. Gathered for the description: commits \"Add TOTP challenge after password check\", \"Verify codes with the auth service\", \"Issue the session only after the second factor\". Diff: web/Login.tsx still posts the password to POST /login; api/login.go now answers 202 with a challenge id instead of setting the session cookie when the user has 2FA on; web/TotpForm.tsx (new) posts the 6-digit code with the challenge id to POST /login/totp; api/totp.go (new) calls the auth service's VerifyTotp and, when it passes, sets the session cookie.",
+      "expected_output": "A sequenceDiagram for the PR body with the browser, the API and the auth service; the new messages inside rect rgba(240, 83, 26, 0.14); render.mjs --destination pr clean.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination pr",
+        "The source is a sequenceDiagram with the browser or web app, the API and the auth service",
+        "The messages the PR adds (202 challenge, POST /login/totp, VerifyTotp, session cookie after it) sit inside rect rgba(240, 83, 26, 0.14) blocks; the unchanged POST /login does not",
+        "accTitle and accDescr present; no classDef or colour other than the rect",
+        "No message the gathered facts do not support"
+      ]
+    },
+    {
+      "id": "pr-prices-er",
+      "prompt": "I need the diagram for the PR description of migration 0058. Gathered: migrations/0058_prices.sql creates table prices (id uuid primary key, product_id uuid references products.id, currency char(3), amount_cents int, valid_from timestamptz), copies products.price into it, then drops products.price; order_items gets a new column price_id uuid references prices.id. products keeps id and name; order_items keeps id, order_id, product_id and quantity.",
+      "expected_output": "An erDiagram of products, prices and order_items with their columns, prices and order_items marked changed, price_id commented new, products plain with the dropped column named in the caption; render.mjs --destination pr clean.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination pr",
+        "The source is an erDiagram with products, prices and order_items and the relations prices→products and order_items→prices",
+        "prices and order_items carry class … changed with the reference's classDef; products, which only loses a column, stays plain",
+        "The new price_id column carries the comment \"new\"; the caption says products.price was dropped",
+        "accTitle and accDescr present; columns and types match the migration"
+      ]
+    },
+    {
+      "id": "pr-backport-git",
+      "prompt": "I'm opening a backport PR and want a diagram of where the fix goes. The fix \"Fix token refresh race\" landed on main after \"Add audit log\". This PR cherry-picks it onto release/4.2, which was branched from main at the v4.2.0 tag and has had \"Fix CSV export\" since; after the merge we tag v4.2.1.",
+      "expected_output": "A gitGraph: main with the release branch from v4.2.0, the fix on main, cherry-picked onto release/4.2 and tagged v4.2.1; the cherry-pick is the pull request's commit and marks itself; render.mjs --destination pr clean.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination pr",
+        "The source is a gitGraph with main and release/4.2, branched at a commit tagged v4.2.0",
+        "The fix is cherry-picked onto release/4.2 with tag v4.2.1",
+        "The pull request's commit is the cherry-pick onto release/4.2 (a cherry-pick cannot take type: HIGHLIGHT); commit messages do not run into another branch's line in the preview",
+        "Commit order matches the facts: Add audit log before the fix on main, Fix CSV export on the release branch before the cherry-pick"
+      ]
+    },
+    {
+      "id": "pr-no-diagram",
+      "prompt": "Write the PR description for branch eslint-9. The repository's AGENTS.md has the sumi-diagrams pull request rule. Gathered: commits \"Bump eslint to 9.12\", \"Move to flat config\", \"Fix 14 new lint warnings\". Diff: package.json and package-lock.json, .eslintrc.json deleted, eslint.config.js new, small lint fixes in 9 files.",
+      "expected_output": "A short PR description with no Mermaid diagram, and one sentence saying a dependency and config change gets none under the rule.",
+      "assertions": [
+        "The description contains no ```mermaid block",
+        "The reply says why: a dependency bump with config and lint fixes adds no new link",
+        "Nothing is rendered or written besides the description"
+      ]
+    },
+    {
+      "id": "pr-latency-xy",
+      "prompt": "Add a chart to the PR description: this PR adds a read-through cache to the catalog service. The PR's k6 benchmark at 200 virtual users, p95 before → after: GET /products 380 → 95 ms, GET /products/:id 210 → 60 ms, GET /categories 140 → 130 ms.",
+      "expected_output": "An xychart with the three endpoints, a before and an after bar series in that order, a y-axis in ms; render.mjs --destination pr clean; the GitHub preview shows both series.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination pr",
+        "The source is an xychart with three categories and two named bar series, before declared first",
+        "Values match the benchmark exactly",
+        "accTitle and accDescr present",
+        "The y-axis names the unit",
+        "No showDataLabel: the numbers are in the caption or the description"
+      ]
+    },
+    {
+      "id": "pr-opt-in",
+      "prompt": "In the repository at eval-results/sumi-diagrams/round-3/pr-opt-in/repo, draw an SVG of how a payment request moves through the service, for docs/payments.svg.",
+      "expected_output": "docs/payments.svg and its .mmd drawn from the code; after delivering, one question asking whether pull requests in this repository should get diagrams, naming AGENTS.md as where the rule would go; AGENTS.md left unchanged.",
+      "assertions": [
+        "render.mjs printed \"check: clean\" with destination svg",
+        "Every node comes from the repository's code",
+        "The reply ends with one question about pull request diagrams that names AGENTS.md",
+        "AGENTS.md is unchanged: no rule and no marker written before the answer"
+      ]
     }
   ],
   "trigger_queries": {
@@ -240,7 +324,9 @@
       "Visualize the state machine in order_status.go",
       "Diagram how the branches flow in our git workflow",
       "Turn this tree output into a picture for the docs",
-      "Restyle the mermaid diagrams in docs/ so they work in dark mode"
+      "Restyle the mermaid diagrams in docs/ so they work in dark mode",
+      "Add a diagram of what this branch changes to the PR description",
+      "Prepare the pull request and include a mermaid diagram of the new flow"
     ],
     "should_not_trigger": [
       "Draw a polished architecture poster in draw.io for the conference slide",
@@ -250,7 +336,8 @@
       "Make a logo for the project",
       "Build a React dashboard with live charts from our API",
       "Convert this PNG screenshot to text",
-      "Review the diagrams in this PR description for correctness of the architecture"
+      "Review the diagrams in this PR description for correctness of the architecture",
+      "Write the PR description for this dependency bump"
     ]
   }
 }
