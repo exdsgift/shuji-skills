@@ -27,13 +27,11 @@ _VALUE = "|".join(re.escape(o) for o in sorted(PATH_OPTIONS | GIT_VALUE_OPTIONS)
 _GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
 RAW_COMMIT = re.compile(_GIT + r"[\"']?commit[\"']?(?![\w-])")
 RAW_WORKTREE_ADD = re.compile(_GIT + r"[\"']?worktree[\"']?[ \t]+[\"']?add[\"']?(?![\w-])")
-_ARG = r"(?:\"[^\"]*\"|'[^']*'|[^\s;&|()<>\"'])+"
-_REDIRECT = r"\d*(?:>>?|<<?|>&|<&)[ \t]*" + _ARG
-RAW_CD = re.compile(r"(?<![\w.$/-])(?:cd|pushd)((?:[ \t]+(?:" + _REDIRECT + "|" + _ARG + "))+)")
+# a word that changes directory or runs text the hook does not read, anywhere in the raw text
+RAW_MOVES = re.compile(r"(?<![\w.$/-])(?:cd|pushd|popd|eval|source)(?![\w.-])|(?:^|[;&|(\n])[ \t]*\.[ \t]")
 SUBST = "$TORYO_SUBST"  # a $(...) or backtick span: its value is unknown to the hook
 GIT_ENV = re.compile(r"^(GIT_DIR|GIT_WORK_TREE)=")
 SETTERS = {"export", "declare", "typeset", "readonly", "local"}
-UNREADABLE = {"eval", "source", "."}  # they run text the hook does not read: any checkout is possible after them
 
 
 class Refuse(Exception):
@@ -150,11 +148,13 @@ def prefix(words):
 
 
 def resolve(path, base):
-    """An absolute path, or None when the shell would expand something the hook cannot see."""
-    if re.search(r"\$\{?(OLDPWD|PWD)\b", path):
-        return None
-    path = os.path.expandvars(os.path.expanduser(path))
-    if any(c in path for c in "$`*?[") or path.startswith("~"):  # ~-, ~+, ~N, ~user unknown; globs too
+    """An absolute path, or None when it depends on what the hook cannot see: it expands `~` and `$HOME` only, so a
+    path with any other variable, `~-`, `~+`, `~N`, a `$(...)` or backticks, or a glob is unknown."""
+    home = os.path.expanduser("~")
+    path = re.sub(r"\$(HOME\b|\{HOME\})", lambda _: home, path)
+    if path == "~" or path.startswith("~/"):
+        path = home + path[1:]
+    if any(c in path for c in "$`*?[~"):
         return None
     if os.path.isabs(path):
         return os.path.normpath(path)
@@ -187,87 +187,29 @@ def git_call(words, where):
     return None
 
 
-def moved(here, target):
-    """The checkouts the shell may be in after `cd target`: the target is added, nothing is taken away, because a cd
-    may fail, run in the background, in a pipe or a subshell, or sit under an `if` the hook cannot evaluate."""
-    return here | frozenset(resolve(target, base) for base in here)
-
-
-def cd_target(args):
-    """Where a `cd` or `pushd` goes, from its arguments: redirections and options dropped; `-` is unknown."""
-    rest, i = [], 0
-    while i < len(args):
-        m = re.match(r"^\d*(>>?|<<?|>&|<&)(.*)$", args[i])
-        if m:
-            i += 1 if m.group(2) else 2  # a bare ">" takes the next word as its file
-            continue
-        rest.append(args[i])
-        i += 1
-    while rest and rest[0].startswith("-") and rest[0] != "-":
-        if rest.pop(0) == "--":
-            break
-    target = rest[0] if rest else "~"
-    return "$TORYO_UNKNOWN" if target == "-" else target
-
-
-def named_dirs(raws, cwd):
-    """The session's checkout and every directory a `cd` or `pushd` in the raw text names, wherever it stands, so a
-    reading slip cannot hide one: a commit not written with an absolute `-C` is checked in each."""
-    targets = []
-    for raw in raws:
-        for m in RAW_CD.finditer(raw):
-            try:
-                args = shlex.split(m.group(1))
-            except ValueError:
-                args = m.group(1).split()
-            targets.append(cd_target(args))
-    bases = {cwd}
-    for target in targets:  # in the order the shell meets them: each may be relative to where the earlier ones led
-        bases |= {resolve(target, b) for b in bases if b is not None}
-        if len(bases) > 256:
-            return frozenset(bases | {None})
-    return frozenset(bases)
-
-
-def read(command, cwd):
+def read(command, cwd, moves):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
-    act on (None for one the hook cannot see)."""
-    here, stack, words, depth, commands, calls = named_dirs(opaque(command), cwd), [], [], 0, [], []
-    seen, cases, pattern, opened, git_env = set(here), 0, False, False, False
-    sub_case, sub_in, sub_pattern, sub_opened = 0, False, False, False
+    act on (None for one the hook cannot see). The hook does not follow `cd`: when the command has a word that moves
+    the shell or runs unread text (`moves`), a checkout not written as an absolute `-C` is unknown."""
+    here = frozenset([cwd, None]) if moves else frozenset([cwd])
+    words, depth, commands, calls, git_env = [], 0, [], [], False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
-        if depth:  # inside an unquoted $(...): one opaque word; a case in it ends its patterns with ")"
+        if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
             if not separator:
-                if token == "case":
-                    sub_case, sub_in = sub_case + 1, True
-                elif token == "in" and sub_in:
-                    sub_in, sub_pattern, sub_opened = False, True, False
-                elif token == "esac" and sub_case:
-                    sub_case, sub_pattern = sub_case - 1, False
                 continue
-            rest, i = "", 0
-            while i < len(token):
-                if not depth:
-                    rest, i = rest + token[i], i + 1
-                    continue
-                if sub_case and token.startswith((";;", ";&"), i):
-                    sub_pattern, sub_opened, i = True, False, i + 2
-                    continue
-                ch, i = token[i], i + 1
-                if sub_pattern and ch == "(" and not sub_opened:
-                    sub_opened = True
-                elif sub_pattern and ch == ")":
-                    sub_pattern = False
-                else:
+            rest = ""
+            for ch in token:
+                if depth:
                     depth += (ch == "(") - (ch == ")")
+                else:
+                    rest += ch
             if not rest:
                 continue
             token = rest  # shlex glues ")" to the separator after it
         if separator and "(" in token and words and words[-1].endswith("$"):
             words[-1] += "(...)"
             depth = token.count("(") - token.count(")")
-            sub_case, sub_in, sub_pattern, sub_opened = 0, False, False, False
             continue
         if not separator:
             words.append(token)
@@ -276,45 +218,20 @@ def read(command, cwd):
         git_env = git_env or any(GIT_ENV.match(w) for w in settings)  # it moves every later git call
         if command_words:
             commands.append(command_words)
-            cases += (command_words[0] == "case") - (command_words[0] == "esac")
-            pattern = command_words[0] == "case" or (pattern and command_words[0] != "esac")
-            opened = opened and command_words[0] != "case"
-            if command_words[0] in ("cd", "pushd"):
-                here = moved(here, cd_target(command_words[1:]))
-                seen |= here
-            elif command_words[0] == "popd":
-                here = frozenset(seen)  # the stack is not followed: any checkout seen so far
-            elif command_words[0] in UNREADABLE:
-                here = here | {None}
-            elif os.path.basename(command_words[0]) == "git":
+            if os.path.basename(command_words[0]) == "git":
                 placed = [git_call(command_words, None if git_env else base) for base in here]
                 if placed[0]:
                     where = {None} if git_env else {w for _, w in placed}
                     calls.append((placed[0][0], frozenset(where)))
         words = []
-        parens, i = "", 0
-        while i < len(token):  # inside case ... esac, a pattern's own "(" and ")" open and close no subshell
-            if cases and token.startswith((";;", ";&"), i):
-                pattern, opened, i = True, False, i + 2
-                continue
-            ch, i = token[i], i + 1
-            if cases and pattern and ch == "(" and not opened:
-                opened = True
-            elif cases and pattern and ch == ")":
-                pattern = False
-            else:
-                parens += ch
-        stack += [here] * parens.count("(")
-        for _ in range(parens.count(")")):
-            here = stack.pop() if stack else here
     return commands, calls
 
 
 def check(command, cwd, project):
     """Raise Refuse for the first refusal; return the setup file's problems otherwise."""
     default, cap, guards, problems = setup_values(project)
-    commands, calls = read(command, cwd)
     raws = opaque(command)
+    commands, calls = read(command, cwd, any(RAW_MOVES.search(raw) for raw in raws))
     pieces = [p.strip(" \t({!") for raw in raws for p in re.split(r"[;&|\n]+", raw)]
     for pattern, reason in guards:
         for text in [" ".join(c) for c in commands] + pieces:
@@ -328,8 +245,8 @@ def check(command, cwd, project):
     if any(RAW_WORKTREE_ADD.search(raw) for raw in raws) and not adds:
         adds = [frozenset([cwd])]
     commits = [where for wheres in commits for where in wheres]
-    adds = [where for wheres in adds for where in wheres]
-    for where in commits + adds:
+    adds = [cwd if where is None else where for wheres in adds for where in wheres]  # one worktree list per repo
+    for where in commits:
         if where is None:
             raise Refuse("cannot tell which checkout this git call acts on. Write its path out: git -C /absolute/path.")
     for where in commits:
@@ -397,11 +314,11 @@ def self_test():
         (0, f"git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {repo} commit -m x", wt, repo, on_main),
         (0, "git commit -m x", wt, repo, ""),
-        (2, f"cd {repo} && git commit -m x", wt, repo, on_main),
-        (2, f"cd '{repo}' && git commit -m x", wt, repo, on_main),
-        (2, f"cd {repo}; git commit -m x", wt, repo, on_main),
-        (2, f"cd {repo}\ngit commit -m x", wt, repo, on_main),
-        (2, f"(cd {repo} && git status) && git commit -m x", wt, repo, on_main),
+        (2, f"cd {repo} && git commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd '{repo}' && git commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd {repo}\ngit commit -m x", wt, repo, "cannot tell"),
+        (2, f"(cd {repo} && git status) && git commit -m x", wt, repo, "cannot tell"),
         (0, f"(cd {repo} && git status) && git -C {wt} commit -m x", wt, repo, ""),
         (0, f"cd {wt}/docs; git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} status && git commit -m x", repo, repo, on_main),
@@ -422,7 +339,7 @@ def self_test():
         (0, "git push origin feat/x && git checkout -f main", repo, repo, ""),
         (2, "git status # note\ngit commit -m x", repo, repo, on_main),
         (2, "git add -A && echo issue#12 && git commit -m x", repo, repo, on_main),
-        (2, f"cd {repo}  # the session checkout\ngit commit -m x", wt, repo, on_main),
+        (2, f"cd {repo}  # the session checkout\ngit commit -m x", wt, repo, "cannot tell"),
         (2, "if ! git diff --cached --quiet; then git commit -m x; fi", repo, repo, on_main),
         (2, "for f in a b; do git commit -m $f; done", repo, repo, on_main),
         (2, "! git commit -m x", repo, repo, on_main),
@@ -433,7 +350,7 @@ def self_test():
         (2, f"git -C $(git -C {repo} rev-parse --show-toplevel) commit -m x", wt, repo, "cannot tell"),
         (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, "cannot"),
         (2, "git \\\ncommit -m x", repo, repo, on_main),
-        (2, f"pushd {repo} && git commit -m x", wt, repo, on_main),
+        (2, f"pushd {repo} && git commit -m x", wt, repo, "cannot tell"),
         (2, "git add $(git ls-files -m)\ngit commit -m x", repo, repo, on_main),
         (0, f"git -C {wt} add $(git ls-files -m)\ngit -C {wt} commit -m x", repo, repo, ""),
         (2, "echo $(date);git commit -m x", repo, repo, on_main),
@@ -454,28 +371,28 @@ def self_test():
         (2, 'echo "$(git commit -m x)"', repo, repo, unplaced),
         (2, "R=`git commit -m x`", repo, repo, unplaced),
         (2, "out=$(git push --force origin main 2>&1)", repo, repo, "operator's"),
-        (2, "cd /no/such/dir\ngit commit -m x", repo, repo, on_main),
-        (2, f"cd {os.path.join(tmp, 'wt-typo')}; git commit -m x", repo, repo, on_main),
-        (2, "[ -d /no/such ] && cd /no/such; git commit -m x", repo, repo, on_main),
-        (2, f"false && cd {wt}; git commit -m x", repo, repo, on_main),
-        (2, f"if [ -d {wt} ]; then cd {wt}; fi; git commit -m x", repo, repo, on_main),
-        (2, f"pushd {wt} && git status && popd && git commit -m x", repo, repo, on_main),
-        (2, f"cd {wt} && git commit -m x", repo, repo, on_main),
+        (2, "cd /no/such/dir\ngit commit -m x", repo, repo, "cannot tell"),
+        (2, f"cd {os.path.join(tmp, 'wt-typo')}; git commit -m x", repo, repo, "cannot tell"),
+        (2, "[ -d /no/such ] && cd /no/such; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"false && cd {wt}; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"if [ -d {wt} ]; then cd {wt}; fi; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"pushd {wt} && git status && popd && git commit -m x", repo, repo, "cannot tell"),
+        (2, f"cd {wt} && git commit -m x", repo, repo, "cannot tell"),
         (0, f"git -C {wt} fetch origin && git -C {wt} commit -m x", repo, repo, ""),
-        (2, f"git -C {wt} fetch origin && cd {wt} && git commit -m x; git commit -m y", repo, repo, on_main),
-        (2, f"cd {wt}\ngit add -A\ngit commit -m x", repo, repo, on_main),
-        (2, f"if false; then echo hi; cd {wt}; fi; git commit -m x", repo, repo, on_main),
-        (2, f'if [ -n "$CI" ]; then\ncd {wt}\nfi\ngit commit -m x', repo, repo, on_main),
-        (2, f"for d in; do\ncd {wt}\ndone\ngit commit -m x", repo, repo, on_main),
-        (2, f"(cd {wt} && false) && cd {wt} && git add -A; git commit -m x", repo, repo, on_main),
-        (2, f"cd {wt} & git commit -m x", repo, repo, on_main),
-        (2, f"cd {wt} | cat; git commit -m x", repo, repo, on_main),
-        (2, f"cd {wt}/typo/..; git commit -m x", repo, repo, on_main),
-        (2, f"git status # clean; cd {wt} next\ngit commit -m x", repo, repo, on_main),
+        (2, f"git -C {wt} fetch origin && cd {wt} && git commit -m x; git commit -m y", repo, repo, "cannot tell"),
+        (2, f"cd {wt}\ngit add -A\ngit commit -m x", repo, repo, "cannot tell"),
+        (2, f"if false; then echo hi; cd {wt}; fi; git commit -m x", repo, repo, "cannot tell"),
+        (2, f'if [ -n "$CI" ]; then\ncd {wt}\nfi\ngit commit -m x', repo, repo, "cannot tell"),
+        (2, f"for d in; do\ncd {wt}\ndone\ngit commit -m x", repo, repo, "cannot tell"),
+        (2, f"(cd {wt} && false) && cd {wt} && git add -A; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"cd {wt} & git commit -m x", repo, repo, "cannot tell"),
+        (2, f"cd {wt} | cat; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"cd {wt}/typo/..; git commit -m x", repo, repo, "cannot tell"),
+        (2, f"git status # clean; cd {wt} next\ngit commit -m x", repo, repo, "cannot tell"),
         (2, f"cd {wt}; cd -; git commit -m x", repo, repo, ""),
         (2, "cd -- -; git commit -m x", wt, repo, "cannot tell"),
         (2, "cd -P -; git commit -m x", wt, repo, "cannot tell"),
-        (2, f"( cd {repo}; case x in x) git commit -m x ;; esac )", wt, repo, on_main),
+        (2, f"( cd {repo}; case x in x) git commit -m x ;; esac )", wt, repo, "cannot tell"),
         (0, f"case x in x) echo hi ;; esac; git -C {wt} commit -m x", repo, repo, ""),
         (2, f'eval "cd {repo}"; git commit -m x', wt, repo, "cannot tell"),
         (2, f"source env.sh; git commit -m x", wt, repo, "cannot tell"),
@@ -490,20 +407,21 @@ def self_test():
         (2, f"env GIT_DIR={repo}/.git git commit -m x", wt, repo, "cannot tell"),
         (2, f"declare -x GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
         (0, f"case x in x) ( cd {repo} && true ); git -C {wt} commit -m x ;; esac", wt, repo, ""),
-        (2, f"case x in\nx) cd {repo} ;;\nesac\ngit commit -m x", wt, repo, on_main),
+        (2, f"case x in\nx) cd {repo} ;;\nesac\ngit commit -m x", wt, repo, "cannot tell"),
         (2, f"case x in\n  y) true ;;\n  x) git -C {repo} commit -m x ;;\nesac", wt, repo, on_main),
         (2, "cd ~-; git commit -m x", wt, repo, "cannot tell"),
         (2, "git -C ~- commit -m x", wt, repo, "cannot tell"),
         (2, f"(\n  cd {repo}\n  case \"$1\" in\n    # 1) nothing to do\n    *) git fetch -q . ;;\n  esac\n"
-         "  git commit -m x\n)", wt, repo, on_main),
-        (2, f"(\n  cd {repo}\n  case x in\n    a) : ;;  # the a) arm\n  esac\n  git commit -m x\n)", wt, repo, on_main),
+         "  git commit -m x\n)", wt, repo, "cannot tell"),
+        (2, f"(\n  cd {repo}\n  case x in\n    a) : ;;  # the a) arm\n  esac\n  git commit -m x\n)", wt, repo,
+         "cannot tell"),
         (2, f"case x in (a) : ;; esac\ncd {repo}\ncase y in\n  # y) the only arm\n  y) : ;;\nesac\ngit commit -m x",
-         wt, repo, on_main),
-        (2, f"( cd {repo}; echo hi # done)\ngit commit -m x )", wt, repo, on_main),
+         wt, repo, "cannot tell"),
+        (2, f"( cd {repo}; echo hi # done)\ngit commit -m x )", wt, repo, "cannot tell"),
         (0, "git commit -m x # done", wt, repo, ""),
-        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; esac); git commit -m x )", wt, repo, on_main),
-        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; b) echo 2 ;; esac); git commit -m x )", wt, repo, on_main),
-        (2, f"( cd {repo}; v=`case a in a) echo 1 ;; esac`; git commit -m x )", wt, repo, on_main),
+        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; esac); git commit -m x )", wt, repo, "cannot tell"),
+        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; b) echo 2 ;; esac); git commit -m x )", wt, repo, "cannot tell"),
+        (2, f"( cd {repo}; v=`case a in a) echo 1 ;; esac`; git commit -m x )", wt, repo, "cannot tell"),
         (0, f"( cd {repo}; v=$(case a in (a) echo 1 ;; esac) ); git -C {wt} commit -m x", wt, repo, ""),
         (2, f"readonly GIT_DIR={repo}/.git; export GIT_DIR; git commit -m x", wt, repo, "cannot tell"),
         (2, f"local GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
@@ -511,29 +429,39 @@ def self_test():
         (2, f"pushd {repo}; pushd {wt}; git -C ~1 commit -m x", wt, repo, "cannot tell"),
         (2, f'cd {repo}; git -C "$PWD" commit -m x', wt, repo, "cannot tell"),
         (2, f"cd {repo}; git -C ${{OLDPWD}} commit -m x", wt, repo, "cannot tell"),
-        (2, f'msg="$(printf "%s # %s" a b)"; cd {repo}\ngit commit -m x', wt, repo, on_main),
-        (2, f'echo "$(echo "a # b")" && cd {repo}\ngit commit -m x', wt, repo, on_main),
-        (2, f"echo \\ #x; cd {repo}\ngit commit -m x", wt, repo, on_main),
-        (2, f"echo ${{x:-a #b}}; cd {repo}\ngit commit -m x", wt, repo, on_main),
+        (2, f'msg="$(printf "%s # %s" a b)"; cd {repo}\ngit commit -m x', wt, repo, "cannot tell"),
+        (2, f'echo "$(echo "a # b")" && cd {repo}\ngit commit -m x', wt, repo, "cannot tell"),
+        (2, f"echo \\ #x; cd {repo}\ngit commit -m x", wt, repo, "cannot tell"),
+        (2, f"echo ${{x:-a #b}}; cd {repo}\ngit commit -m x", wt, repo, "cannot tell"),
         (2, f"echo $'it\\'s' ' # '; cd {repo}\ngit commit -m x", wt, repo, ""),
         (2, f"v=`echo \\`date\\` `\ncd {repo}\necho '`'\ngit commit -m x", wt, repo, ""),
         (2, f"shopt -s extglob\n( cd {repo}\ncase x in @(a|x)) : ;; esac\ngit commit -m x )", wt, repo, ""),
-        (2, f"# note \\\ncd {repo}\ngit commit -m x", wt, repo, on_main),
+        (2, f"# note \\\ncd {repo}\ngit commit -m x", wt, repo, "cannot tell"),
         (0, f"( cd {repo} && case x in\n(a) : ;;\n(x) git status >/dev/null ;;\nesac ) ; git -C {wt} commit -m x",
          wt, repo, ""),
         (0, f"( cd {repo} && case x in (a) : ;;(x) git status ;; esac ) ; git -C {wt} commit -m x", wt, repo, ""),
         (0, f"v=$(case a in\n(a) echo 1 ;;\n(b) echo 2 ;;\nesac)\ngit -C {wt} commit -m x", repo, repo, ""),
         (2, slip('cd "$(git rev-parse --git-common-dir)/.."'), wt, repo, "cannot tell"),
         (2, slip(f"cd `git -C {repo} rev-parse --show-toplevel`"), wt, repo, "cannot tell"),
-        (2, slip('cd "$HOME"/repo'), wt, repo, on_main),
-        (2, slip(f'cd "{wt}"/../repo'), wt, repo, on_main),
-        (2, slip("cd a; cd b; cd ../../../repo"), wt, repo, on_main),
+        (2, slip('cd "$HOME"/repo'), wt, repo, "cannot tell"),
+        (2, slip(f'cd "{wt}"/../repo'), wt, repo, "cannot tell"),
+        (2, slip("cd a; cd b; cd ../../../repo"), wt, repo, "cannot tell"),
         (2, f"cd {repo}*; git commit -m x", wt, repo, "cannot tell"),
         (2, f"git -C {repo}* commit -m x", wt, repo, "cannot tell"),
-        (2, f"cd >/dev/null {repo}; git commit -m x", wt, repo, on_main),
-        (2, f"pushd > /dev/null {repo}; git commit -m x", wt, repo, on_main),
-        (2, slip(f"cd >/dev/null 2>&1 {repo}"), wt, repo, on_main),
+        (2, f"cd >/dev/null {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"pushd > /dev/null {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, slip(f"cd >/dev/null 2>&1 {repo}"), wt, repo, "cannot tell"),
         (0, f"cd >/dev/null {repo}; git -C {wt} commit -m x", wt, repo, ""),
+        (2, slip("cd ~/r\\(1\\)"), wt, repo, "cannot tell"),
+        (2, slip("cd"), wt, repo, "cannot tell"),
+        (2, f"cd &>/dev/null {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd >& /dev/null {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd >| /dev/null {repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f'X={repo}; git -C "$X" commit -m x', wt, repo, "cannot tell"),
+        (2, ". ./env.sh; git commit -m x", wt, repo, "cannot tell"),
+        (0, "git add . && git commit -m x", wt, repo, ""),
+        (0, f"git -C {wt} add . && git -C {wt} commit -m x", repo, repo, ""),
+        (0, f"cd {repo} && git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),

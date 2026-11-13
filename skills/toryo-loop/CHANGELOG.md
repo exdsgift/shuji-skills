@@ -5,12 +5,10 @@ What changed in toryo-loop, newest first. There are no version numbers: each pus
 
 ## 2026-11-13
 
-- The guard hook checks a commit not written with an absolute `git -C` in every directory a `cd` or `pushd`
-  names anywhere in the command. It reads a `case` (also inside `$(...)`) and its patterns, counts `GIT_DIR` and
-  `GIT_WORK_TREE` only where the shell sets them (`readonly` and `local` included), and treats `~-`, `~+`, `~N`,
-  `$PWD`, `$OLDPWD` and a path with a glob as an unknown checkout.
-  The setup file and the briefs give worktrees an absolute path, one root per repository, so
-  `git -C <worktree> commit` passes the hook after an `eval` or a `source`.
+- The guard hook no longer follows `cd`: when a command has a `cd`, `pushd`, `popd`, `eval`, `source` or `.`
+  anywhere, a commit without an absolute `git -C` is refused, and the hook expands only `~` and `$HOME`. It counts
+  `GIT_DIR` and `GIT_WORK_TREE` only where the shell sets them (`readonly` and `local` included). The setup file and
+  the briefs give worktrees an absolute path, one root per repository, so `git -C <worktree> commit` always passes.
 - First version. The skill runs a coding-agent delivery loop as the master session: a queue in a GitHub issue,
   executor subagents that build each ticket in a worktree and stop at the draft pull request, a fresh reviewer on
   another model, one fix round on proved bugs, a land checked for `MERGED`, and the issues kept current.
