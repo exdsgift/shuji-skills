@@ -27,6 +27,7 @@ _VALUE = "|".join(re.escape(o) for o in sorted(PATH_OPTIONS | GIT_VALUE_OPTIONS)
 _GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
 RAW_COMMIT = re.compile(_GIT + r"[\"']?commit[\"']?(?![\w-])")
 RAW_WORKTREE_ADD = re.compile(_GIT + r"[\"']?worktree[\"']?[ \t]+[\"']?add[\"']?(?![\w-])")
+RAW_CD = re.compile(r"(?<![\w.$/-])(?:cd|pushd)((?:[ \t]+(?:\"[^\"]*\"|'[^']*'|[^\s;&|()<>]+))+)")
 GIT_ENV = re.compile(r"^(GIT_DIR|GIT_WORK_TREE)=")
 SETTERS = {"export", "declare", "typeset", "readonly", "local"}
 UNREADABLE = {"eval", "source", "."}  # they run text the hook does not read: any checkout is possible after them
@@ -101,46 +102,17 @@ def strip_heredocs(command):
     return "\n".join(out)
 
 
-def prepare(text):
-    """Drop comments and make each backtick span one unknown word, minding quotes as the shell does."""
-    out, i, quote = [], 0, None
-    while i < len(text):
-        ch = text[i]
-        if quote == "'":
-            quote = None if ch == "'" else quote
-        elif ch == "\\":
-            out.append(text[i:i + 2])
-            i += 2
-            continue
-        elif ch == '"':
-            quote = None if quote == '"' else '"'
-        elif ch == "'" and quote is None:
-            quote = "'"
-        elif ch == "`":
-            end = text.find("`", i + 1)
-            out.append("$TORYO_SUBST")
-            i = len(text) if end < 0 else end + 1
-            continue
-        elif ch == "#" and quote is None and (i == 0 or text[i - 1] in " \t\n;&|()"):
-            end = text.find("\n", i)
-            i = len(text) if end < 0 else end
-            continue
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
 def lex(text):
     lexer = shlex.shlex(text, posix=True, punctuation_chars=PUNCTUATION)
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    lexer.commenters = ""  # prepare() dropped the comments; shlex would also end a word at a `#` inside it
+    lexer.commenters = ""  # a comment is read as words: dropping text could drop a cd
     return list(lexer)
 
 
 def tokens(command):
     """Words and separators, with shell quoting undone, after dropping heredoc bodies and line continuations."""
-    text = prepare(strip_heredocs(command).replace("\\\n", " "))
+    text = strip_heredocs(command).replace("\\\n", " ")
     try:
         return lex(text)
     except ValueError:  # an unbalanced quote: read the line that has it word by word, never skip a line
@@ -218,12 +190,33 @@ def moved(here, target):
     return here | frozenset(resolve(target, base) for base in here)
 
 
+def named_dirs(raws, cwd):
+    """The session's checkout and every directory a `cd` or `pushd` in the raw text names, wherever it stands, so a
+    reading slip cannot hide one: a commit not written with an absolute `-C` is checked in each."""
+    targets = []
+    for raw in raws:
+        for m in RAW_CD.finditer(raw):
+            try:
+                args = shlex.split(m.group(1))
+            except ValueError:
+                args = m.group(1).split()
+            while args and args[0].startswith("-") and args[0] != "-":
+                if args.pop(0) == "--":
+                    break
+            if args:
+                targets.append("$TORYO_UNKNOWN" if args[0] == "-" else args[0])
+    bases = {cwd}
+    for _ in range(2):  # a relative target may be relative to another one
+        bases |= {resolve(t, b) for t in targets for b in list(bases) if b is not None}
+    return frozenset(bases)
+
+
 def read(command, cwd):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
     act on (None for one the hook cannot see)."""
-    here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
+    here, stack, words, depth, commands, calls = named_dirs(opaque(command), cwd), [], [], 0, [], []
     seen, cases, pattern, opened, git_env = set(here), 0, False, False, False
-    sub_case, sub_in, sub_pattern = 0, False, False
+    sub_case, sub_in, sub_pattern, sub_opened = 0, False, False, False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
         if depth:  # inside an unquoted $(...): one opaque word; a case in it ends its patterns with ")"
@@ -231,27 +224,32 @@ def read(command, cwd):
                 if token == "case":
                     sub_case, sub_in = sub_case + 1, True
                 elif token == "in" and sub_in:
-                    sub_in, sub_pattern = False, True
+                    sub_in, sub_pattern, sub_opened = False, True, False
                 elif token == "esac" and sub_case:
                     sub_case, sub_pattern = sub_case - 1, False
                 continue
-            rest = ""
-            for ch in token:
+            rest, i = "", 0
+            while i < len(token):
                 if not depth:
-                    rest += ch
-                elif sub_pattern and ch in "()":
-                    sub_pattern = ch == "("
+                    rest, i = rest + token[i], i + 1
+                    continue
+                if sub_case and token.startswith((";;", ";&"), i):
+                    sub_pattern, sub_opened, i = True, False, i + 2
+                    continue
+                ch, i = token[i], i + 1
+                if sub_pattern and ch == "(" and not sub_opened:
+                    sub_opened = True
+                elif sub_pattern and ch == ")":
+                    sub_pattern = False
                 else:
                     depth += (ch == "(") - (ch == ")")
-            if sub_case and any(end in token for end in (";;", ";&")):
-                sub_pattern = True
             if not rest:
                 continue
             token = rest  # shlex glues ")" to the separator after it
         if separator and "(" in token and words and words[-1].endswith("$"):
             words[-1] += "(...)"
             depth = token.count("(") - token.count(")")
-            sub_case, sub_in, sub_pattern = 0, False, False
+            sub_case, sub_in, sub_pattern, sub_opened = 0, False, False, False
             continue
         if not separator:
             words.append(token)
@@ -281,14 +279,18 @@ def read(command, cwd):
                     where = {None} if git_env else {w for _, w in placed}
                     calls.append((placed[0][0], frozenset(where)))
         words = []
-        parens = token
-        if cases and pattern:  # a case pattern's "(" and ")" open and close no subshell
-            if "(" in parens and not opened:
-                parens, opened = parens.replace("(", "", 1), True
-            if ")" in parens:
-                parens, pattern = parens.replace(")", "", 1), False
-        if cases and any(end in token for end in (";;", ";&")):
-            pattern, opened = True, False
+        parens, i = "", 0
+        while i < len(token):  # inside case ... esac, a pattern's own "(" and ")" open and close no subshell
+            if cases and token.startswith((";;", ";&"), i):
+                pattern, opened, i = True, False, i + 2
+                continue
+            ch, i = token[i], i + 1
+            if cases and pattern and ch == "(" and not opened:
+                opened = True
+            elif cases and pattern and ch == ")":
+                pattern = False
+            else:
+                parens += ch
         stack += [here] * parens.count("(")
         for _ in range(parens.count(")")):
             here = stack.pop() if stack else here
@@ -381,7 +383,8 @@ def self_test():
         (2, f"cd '{repo}' && git commit -m x", wt, repo, on_main),
         (2, f"cd {repo}; git commit -m x", wt, repo, on_main),
         (2, f"cd {repo}\ngit commit -m x", wt, repo, on_main),
-        (0, f"(cd {repo} && git status) && git commit -m x", wt, repo, ""),
+        (2, f"(cd {repo} && git status) && git commit -m x", wt, repo, on_main),
+        (0, f"(cd {repo} && git status) && git -C {wt} commit -m x", wt, repo, ""),
         (0, f"cd {wt}/docs; git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} status && git commit -m x", repo, repo, on_main),
         (0, f"git -C {repo} fetch origin && git -C {wt} commit -m x", wt, repo, ""),
@@ -410,7 +413,7 @@ def self_test():
         (0, f"git -C {wt} commit -m \"$(cat <<'EOF'\nSupport the 27\" panel\nEOF\n)\"", repo, repo, ""),
         (2, 'echo "oops\ngit commit -m x', repo, repo, on_main),
         (2, f"git -C $(git -C {repo} rev-parse --show-toplevel) commit -m x", wt, repo, "cannot tell"),
-        (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, "cannot tell"),
+        (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, "cannot"),
         (2, "git \\\ncommit -m x", repo, repo, on_main),
         (2, f"pushd {repo} && git commit -m x", wt, repo, on_main),
         (2, "git add $(git ls-files -m)\ngit commit -m x", repo, repo, on_main),
@@ -468,7 +471,7 @@ def self_test():
         (0, f"env | grep GIT_DIR= ; git -C {wt} commit -m x", repo, repo, ""),
         (2, f"env GIT_DIR={repo}/.git git commit -m x", wt, repo, "cannot tell"),
         (2, f"declare -x GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
-        (0, f"case x in x) ( cd {repo} && true ); git commit -m x ;; esac", wt, repo, ""),
+        (0, f"case x in x) ( cd {repo} && true ); git -C {wt} commit -m x ;; esac", wt, repo, ""),
         (2, f"case x in\nx) cd {repo} ;;\nesac\ngit commit -m x", wt, repo, on_main),
         (2, f"case x in\n  y) true ;;\n  x) git -C {repo} commit -m x ;;\nesac", wt, repo, on_main),
         (2, "cd ~-; git commit -m x", wt, repo, "cannot tell"),
@@ -483,13 +486,25 @@ def self_test():
         (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; esac); git commit -m x )", wt, repo, on_main),
         (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; b) echo 2 ;; esac); git commit -m x )", wt, repo, on_main),
         (2, f"( cd {repo}; v=`case a in a) echo 1 ;; esac`; git commit -m x )", wt, repo, on_main),
-        (0, f"( cd {repo}; v=$(case a in (a) echo 1 ;; esac) ); git commit -m x", wt, repo, ""),
+        (0, f"( cd {repo}; v=$(case a in (a) echo 1 ;; esac) ); git -C {wt} commit -m x", wt, repo, ""),
         (2, f"readonly GIT_DIR={repo}/.git; export GIT_DIR; git commit -m x", wt, repo, "cannot tell"),
         (2, f"local GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
-        (0, f"( cd {repo} && case x in (x) git status >/dev/null ;; esac ) ; git commit -m x", wt, repo, ""),
+        (0, f"( cd {repo} && case x in (x) git status >/dev/null ;; esac ) ; git -C {wt} commit -m x", wt, repo, ""),
         (2, f"pushd {repo}; pushd {wt}; git -C ~1 commit -m x", wt, repo, "cannot tell"),
         (2, f'cd {repo}; git -C "$PWD" commit -m x', wt, repo, "cannot tell"),
         (2, f"cd {repo}; git -C ${{OLDPWD}} commit -m x", wt, repo, "cannot tell"),
+        (2, f'msg="$(printf "%s # %s" a b)"; cd {repo}\ngit commit -m x', wt, repo, on_main),
+        (2, f'echo "$(echo "a # b")" && cd {repo}\ngit commit -m x', wt, repo, on_main),
+        (2, f"echo \\ #x; cd {repo}\ngit commit -m x", wt, repo, on_main),
+        (2, f"echo ${{x:-a #b}}; cd {repo}\ngit commit -m x", wt, repo, on_main),
+        (2, f"echo $'it\\'s' ' # '; cd {repo}\ngit commit -m x", wt, repo, ""),
+        (2, f"v=`echo \\`date\\` `\ncd {repo}\necho '`'\ngit commit -m x", wt, repo, ""),
+        (2, f"shopt -s extglob\n( cd {repo}\ncase x in @(a|x)) : ;; esac\ngit commit -m x )", wt, repo, ""),
+        (2, f"# note \\\ncd {repo}\ngit commit -m x", wt, repo, on_main),
+        (0, f"( cd {repo} && case x in\n(a) : ;;\n(x) git status >/dev/null ;;\nesac ) ; git -C {wt} commit -m x",
+         wt, repo, ""),
+        (0, f"( cd {repo} && case x in (a) : ;;(x) git status ;; esac ) ; git -C {wt} commit -m x", wt, repo, ""),
+        (0, f"v=$(case a in\n(a) echo 1 ;;\n(b) echo 2 ;;\nesac)\ngit -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),

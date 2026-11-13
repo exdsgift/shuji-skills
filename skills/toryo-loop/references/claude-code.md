@@ -61,15 +61,15 @@ file when notified. Agents run their checks in the foreground. Never read an exi
 }
 ```
 
-It reads the command the way the shell does (quotes, comments, `&&`, `;`, newlines, line continuations, subshells,
+It reads the command the way the shell does (quotes, `&&`, `;`, newlines, line continuations, subshells,
 keywords such as `if`, `do` and `case`, `cd` and `pushd`, `git -C`, `~` and the variables it can see) to find the
 checkout each commit acts on, and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
   worktree with `git -C <worktree> commit` and the worktree's absolute path. A commit whose checkout it cannot tell
-  (a `-C` given by a variable, a `$(...)` or backticks it cannot expand) is refused too: write the path out. A `cd`
-  never takes the guard off a checkout: after one, a commit is checked in every checkout the command has named, so
-  commit with `git -C <worktree> commit`;
+  (a `-C` given by a variable, a `$(...)` or backticks it cannot expand) is refused too: write the path out. Every
+  directory a `cd` or `pushd` names anywhere in the command, in a subshell, a comment or a heredoc too, is a
+  checkout a commit may act on unless the commit gives an absolute `-C`: commit with `git -C <worktree> commit`;
 - a command whose raw text names more `git commit` calls than it can place: one inside quotes, a heredoc body, a
   `$(...)` or backticks, or in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a
   commit on the default branch;
