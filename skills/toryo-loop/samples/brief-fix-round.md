@@ -3,6 +3,8 @@
 Sent with SendMessage to the executor that built the pull request. This is the one fix round: fix these, then stop at
 the push.
 
+Ticket #41, worktree `../wt/tier-pricing`, branch `feat/tier-pricing`, reviewed head `3f2a9c1`.
+
 ## Bugs
 
 - F1 `src/widgets/pricing.py:88`: the loop stops one tier early. Proof: `price_for(qty=100)` gives 9.00, expected 8.50
@@ -22,7 +24,7 @@ the push.
 
 ## Then
 
-1. Merge origin/main into the branch: a merge, never a rebase or a force-push.
+1. `git fetch origin`, then merge origin/main into the branch: a merge, never a rebase or a force-push.
 2. Local checks, in the foreground: `uv run ruff check`, `uv run pyright`, `uv run pytest -q`.
 3. Update the docs the fix touches.
 4. Push, and stop.

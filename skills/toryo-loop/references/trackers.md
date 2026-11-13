@@ -52,9 +52,9 @@ executor's model, and where the deferred lines and nits went.
 
 ## The mirror
 
-The setup file names it (a Jira project or another tracker, for example) and its sync traps. Copy state into it after GitHub, at
-each step that changes state, with the connector the session has. "Fixes #N" in a pull request does not move the
-mirror: set it by hand.
+The setup file names it (a Jira project or another tracker, for example) and its sync traps. Copy state into it after
+GitHub, at each step that changes state, with the connector the session has. "Fixes #N" in a pull request does not
+move the mirror: set it by hand.
 
 ## Plans and briefs
 

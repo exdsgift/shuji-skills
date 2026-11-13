@@ -8,7 +8,7 @@
   When the skill changes a step, a mode or a file, correct the source first, then render it again.
 
   Keep each picture at or below its own width, so its text stays at the size the check measured: lifecycle 757 px,
-  pipeline 800, modes 1121, setup 342, structure 562, out of GitHub's 880.
+  pipeline 800, modes 933, setup 342, structure 562, out of GitHub's 880.
 -->
 
 <h1 align="center">🪚 Toryo loop · 棟梁</h1>
@@ -69,7 +69,7 @@ executors at medium effort cost about 40 % less with the same number of fix roun
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="showcase/pipeline-dark.svg">
-    <img src="showcase/pipeline-light.svg" width="90.9%" alt="Ticket N+1 starts building when N's draft PR goes to review, opens its own PR when N goes into landing, and merges main once N lands; ticket N+2 starts only after N has landed, so never more than two are in flight. Durations are illustrative.">
+    <img src="showcase/pipeline-light.svg" width="90.9%" alt="Ticket N+1 starts building when N's draft PR goes to review, gets its own review when N goes into landing, and merges main once N lands; ticket N+2 starts only after N has landed, so never more than two are in flight. Durations are illustrative.">
   </picture>
 </p>
 
@@ -81,13 +81,13 @@ is. Every pull request is based on the default branch, never stacked.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="showcase/modes-dark.svg">
-    <img src="showcase/modes-light.svg" width="100%" alt="The operator starts the master in one of three modes. Autonomous keeps taking queue rows until the queue is empty or every row waits on a decision. Finish and stop lands what is in flight and takes nothing new. One ticket lands one and reports. Any mode stops on an unexplained red check or a safety rule, and waits for the operator's go.">
+    <img src="showcase/modes-light.svg" width="100%" alt="The operator starts the master in one of three modes, finish and stop when they name none. Autonomous keeps taking queue rows until the queue is empty or every row waits on a decision. Finish and stop lands what is in flight and takes nothing new. One ticket lands one and reports. Any mode stops on an unexplained red check or a safety rule and reports; the operator's go starts it again.">
   </picture>
 </p>
 
-You say how far it goes: **autonomous** works through the queue, **finish and stop** lands what is in flight and
-starts nothing new, **one ticket** does one and reports. Every mode stops on a check nobody can explain. Between
-tickets it sends no status chatter; the stop report is a table of what landed and one question: resume, or stay
+You say how far it goes: **autonomous** works through the queue, **finish and stop** (the default) lands what is in
+flight and starts nothing new, **one ticket** does one and reports. Every mode stops on a check nobody can explain.
+Between tickets it sends no status chatter; the stop report is a table of what landed and one question: resume, or stay
 stopped?
 
 ## Proof, not opinion
@@ -146,8 +146,8 @@ first run copies.</sub></p>
 
 ## Tested before it shipped
 
-Nine decisions the loop gets wrong without help, each a scenario on a made-up repository with assertions, answered by
-a fresh agent without the skill and then with it:
+Nine decisions the loop has to get right, each a scenario on a made-up repository with assertions, answered by a
+fresh agent without the skill and then with it:
 
 | Scenario | Without | With |
 | --- | --- | --- |
@@ -186,7 +186,7 @@ Then ask in plain words:
 > Set up executor and reviewer agents for this repository.
 
 The loop needs `gh`, signed in with access to the repository's issues and pull requests, and `git` worktrees. The
-guard hook needs `python3` or `jq`.
+guard hook needs `python3`.
 
 When the skill itself fails, not your request or your machine, the agent offers to report it here as an issue. It
 shows you the draft, which leaves out your code and your words, and posts it only after you say yes.

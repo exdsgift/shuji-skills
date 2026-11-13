@@ -23,9 +23,17 @@
 <The hot files, and the files of the ticket in flight beside this one.> When you need one of them, stop and say so
 before editing it.
 
+## House rules
+
+- <The house-style skill, named for every brief, or none.>
+- Commits: <commit form>, ending with `<trailer>`.
+- Pull request body: <the body skill or template>; never set the labels <forbidden labels>.
+- <The setup file's Safety lines.>
+
 ## Steps
 
-1. Worktree: `git worktree add <worktree root>/<short> -b <type>/<short> origin/<default>`.
+1. Worktree, from a fresh fetch:
+   `git fetch origin && git worktree add <worktree root>/<short> -b <type>/<short> origin/<default>`.
 2. Tests first: <the tests, with inputs and expected outputs>. Each fails on origin/<default>. Commit and push.
 3. The change. Commit and push after each step, with `git -C <worktree> commit`.
 4. Local checks, in the foreground: `<check commands>`. Each exits 0 on the head.

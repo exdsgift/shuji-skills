@@ -29,7 +29,7 @@ repository `acme/widgets` are in [samples/](samples/): read the one closest to w
    `<land command> && test "$(gh pr view <N> --json state -q .state)" = MERGED && <clean-up>`. A land command's text,
    or its status read through a pipe, proves nothing.
 7. **State comes from GitHub**, never from chat or an agent's memory: `gh pr list --state open --json
-   number,isDraft,mergeable,title`, the issues, the worktrees.
+   number,isDraft,mergeable,title`, the issues, the worktrees. Report state as one line per pull request.
 8. **The master decides what is the master's.** A design choice inside a fix round is the master's: it takes the
    simplest safe option, writes it on the issue and goes on. Only a choice that changes what the work means, or one
    only the operator can take, goes to the decision batch issue.
@@ -61,7 +61,7 @@ When the mode ends, send the stop report (below). After "stay stopped", read age
 | --- | --- | --- |
 | **Executor** | track A and B tickets, tests first, one draft pull request | the strongest model; medium effort |
 | **Executor-light** | track C tickets (docs, config, a rename, labels); says so and stops when logic is needed | a cheaper model |
-| **Reviewer** | nothing: reviews and reports; no edit, comment, push or state change | another model than the executor's; high for A, medium for B and plan reviews, low for C |
+| **Reviewer** | nothing: reviews and reports; no edit, comment, push or state change | another model than the executor's; effort high for A, medium for B and plan reviews, low for C |
 
 - Launch each role by its own agent type, never a general-purpose agent. The first time a type runs, its brief asks
   it to print its exact model id on line one; check it against the setup file.
@@ -93,7 +93,8 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
 1. **Pick** the queue's first row with no open blocker. For the N+1 slot, take the first row whose files are disjoint
    from N's, skipping rows that overlap (rules in Pipeline, below). Done when the ticket is named and its file list
    has been compared with `gh pr diff <N> --name-only`.
-2. **Start the trackers:** the issue, and its mirror, go to In Progress. Done when both show it.
+2. **Start the trackers:** the issue gets the setup file's in-progress marker, and its mirror goes to In Progress.
+   Done when both show it.
 3. **Classify** the track. Done when the track is in the queue row.
 4. **Brief:** fill the template from [assets/briefs/](assets/briefs/) into a file in the session's scratchpad, then
    launch the agent with "Read your brief at `<path>` and follow it exactly". Done when the file exists and the agent
@@ -107,15 +108,16 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
 7. **Decide (A):** take the master's decisions; send the operator's to the decision batch issue and take another
    ticket meanwhile. Write the binding changes into the build brief and a summary on the issue: the scratchpad does
    not last. Done when the build brief and the issue comment exist.
-8. **Build:** a worktree from the default branch on a new `<type>/<short>` branch, tests first (each fails on the
-   default branch), commit and push after each step. Done when the branch is pushed with its tests and code.
+8. **Build:** a worktree from a freshly fetched default branch on a new `<type>/<short>` branch, tests first (each fails
+   on the default branch), commit and push after each step. Done when the branch is pushed with its tests and code.
 9. **Local checks** in the foreground: the setup file's check commands. Done when each exits 0 on the head.
 10. **Draft pull request:** the body through `--body-file`, a first line saying an agent opened it, the agent label,
     `Closes #<n>` or `Part of #<n>`, and a diagram when the setup file's diagram rule asks for one. Done when the
     draft is open.
 11. **Stop at the push.** The executor replies with the pull request number, the head SHA, the local checks, and one
     line per brief item: done or not verified.
-12. **Review:** high for A and B, low for C, launched at once with CI running beside it. Done when the report is in.
+12. **Review:** the code-review level is high for A and B, low for C (the reviewer's effort is in Roles). Launch it
+    at the push with CI running beside it; N+1's waits until N goes into landing. Done when the report is in.
 13. **Fix round:** the bug-level findings with their proof and the red checks, together, in one round, through the
     fix-round brief (SendMessage to the same executor), each bug with its probe to turn into a test that fails before
     the fix. A nit under five minutes in a file the round already touches rides along; every other nit, and every
@@ -123,16 +125,17 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
     Done when the executor replies with the new head and what each item became
     ([references/review.md](references/review.md)).
 14. **Low re-check** of the interdiff `<old>..<new>` only, by the same reviewer, skipping the default branch's merged
-    lines. A bug it proves gets one more small fix and a re-check of that commit alone. Done when the reviewer says
-    clean.
+    lines but reading each merge's conflict resolution (`git show --remerge-diff <merge>`). A bug it proves gets one
+    more small fix and a re-check of that commit alone. Done when the reviewer says clean.
 15. **Ready:** `gh pr ready <N>` once the reviews are clean and CI is green on a head that contains the latest
-    default branch (`mergeStateStatus` is `CLEAN`). Done when the pull request is no longer a draft.
+    default branch: `gh api repos/<owner>/<repo>/compare/<default>...<head sha> -q .behind_by` prints `0`. Done when
+    the pull request is no longer a draft.
 16. **Land** with the setup file's land command, then check `MERGED`. When nothing landed because the default branch
     moved, run the same command again; the master never rebases or force-pushes a head
     ([references/landing.md](references/landing.md)). Done when `gh pr view <N> --json state -q .state` prints
     `MERGED`.
-17. **Clean up**, only after `MERGED`: the remote head branch, the local branch, the worktree and the `pr/<N>` ref.
-    Done when none of the four remains.
+17. **Clean up**, only after `MERGED` and a `git fetch origin --prune`: the remote head branch, the local branch, the
+    worktree and the `pr/<N>` ref. Done when none of the four remains.
 18. **Update the trackers:** comment on each issue the pull request served (what landed, what is left) and close it
     when nothing is left; remove its queue row; update the mirror; send nits to the nits issue and each "for now X,
     later Y" to the deferred issue. Done when all of that shows on GitHub and in the mirror
@@ -146,8 +149,8 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
   test file both touch. Files in a one-file-per-entry registry (a `changelog.d/` folder, for example) may overlap.
   On overlap, N+1 waits until N lands.
 - N has precedence: its fix round comes first, and N+1's review starts once N goes into landing. Once N lands, N+1
-  merges the default branch and reruns its checks; when that merge touches N+1's files, the interdiff gets a low
-  review.
+  fetches and merges the default branch and reruns its checks; when that merge touches N+1's files, the interdiff gets a
+  low review.
 - Every pull request is based on the default branch, never stacked on another: landing deletes the head branch, and
   GitHub then closes every pull request based on it.
 - The worktree cap (default six) is the guard hook's to enforce.
@@ -158,14 +161,16 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
   master decides everything else.
 - Collect the operator's decisions in the decision batch issue. Ask them only when the operator calls for them: one
   question at a time, in plain words, with the options, the cost and risk of each, and one recommendation listed
-  first. Meanwhile work on tickets that do not depend on them.
+  first. When a question is not understood, explain it again more simply. Meanwhile work on tickets that do not
+  depend on them.
 - Answer the operator in their language; everything committed is in English unless the setup file says otherwise.
 
 ## Safety
 
-The setup file adds the repository's own rules; these hold everywhere, and every brief carries them.
+These hold everywhere: the agent files carry them, and each build brief adds the setup file's own under House rules.
 
-- Never type a credential. The operator fills the secrets file; tests use made-up tokens.
+- Never type a credential, and never read the real secrets file: the operator fills it; tests use made-up tokens.
+- Nothing durable lives only on the compute: push early, and put plans' decisions on the issue.
 - Quote every heredoc (`<<'EOF'`), and pass pull request, issue and commit text with `--body-file` or `-F`.
 - Run checks in the foreground: an agent whose turn ends while its own background job runs loses the result.
 - Read a running job; never kill it.
@@ -193,8 +198,10 @@ lives, then one question: "Resume with `<next ticket>`, or stay stopped?" The sh
   mirror. Read it at steps 2 and 18.
 - [references/recovery.md](references/recovery.md): usage limits, a refused model, a stalled agent, a restart, a land
   that did not land. Read it when something stops.
-- [references/claude-code.md](references/claude-code.md): agent files, effort, resuming, the guard hook.
+- [references/claude-code.md](references/claude-code.md): agent files, effort, resuming, the guard hook. Read it
+  when writing the agent files, launching an agent, or installing the hook.
 - [references/trials.md](references/trials.md): how to change the loop itself, and the defaults the trials proved.
+  Read it before changing a model, an effort, a step or a threshold.
 - [assets/](assets/): the setup file template, the five brief templates, the three agent files and the optional
   guard hook, which the first run copies.
 

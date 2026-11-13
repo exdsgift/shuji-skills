@@ -24,9 +24,17 @@ Nothing on origin/main touches these files.
 `src/widgets/registry.py`, `tests/conftest.py`, `src/widgets/export.py`, `tests/test_export.py`. When you need one of
 them, stop and say so before editing it.
 
+## House rules
+
+- Use the `acme-style` skill.
+- Commits: conventional commits, ending with `Co-Authored-By: <agent> <noreply@example.com>`.
+- Pull request body: the template at `.github/PULL_REQUEST_TEMPLATE.md`; never set the labels `release` or `security`.
+- No customer name or API key in a test fixture; `data/` is never removed.
+
 ## Steps
 
-1. Worktree: `git worktree add ../wt/tier-pricing -b feat/tier-pricing origin/main`.
+1. Worktree, from a fresh fetch:
+   `git fetch origin && git worktree add ../wt/tier-pricing -b feat/tier-pricing origin/main`.
 2. Tests first, in `tests/test_pricing.py`: `price_for(qty=49)` is the unit price, `price_for(qty=50)` the first tier,
    `price_for(qty=100)` 8.50, and the property test from B1. Each fails on origin/main. Commit and push.
 3. The change in `src/widgets/pricing.py`. Commit and push after each step, with `git -C ../wt/tier-pricing commit`.

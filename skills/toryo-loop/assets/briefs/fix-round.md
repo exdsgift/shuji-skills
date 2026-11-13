@@ -3,6 +3,8 @@
 Sent with SendMessage to the executor that built the pull request. This is the one fix round: fix these, then stop at
 the push.
 
+Ticket #<n>, worktree `<path>`, branch `<branch>`, reviewed head `<old sha>`.
+
 ## Bugs
 
 - F<k> `<file:line>`: <what is wrong>. Proof: <input> gives <wrong output>, expected <right output>. Fix: <the
@@ -19,7 +21,7 @@ the push.
 
 ## Then
 
-1. Merge origin/<default> into the branch: a merge, never a rebase or a force-push.
+1. `git fetch origin`, then merge origin/<default> into the branch: a merge, never a rebase or a force-push.
 2. Local checks, in the foreground: `<check commands>`.
 3. Update the docs the fix touches.
 4. Push, and stop.

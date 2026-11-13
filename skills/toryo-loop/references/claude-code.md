@@ -45,8 +45,8 @@ file when notified. Agents run their checks in the foreground. Never read an exi
 
 ## The guard hook
 
-[../assets/guard-hook.sh](../assets/guard-hook.sh) is a `PreToolUse` hook on `Bash`. Copy it to
-`.claude/hooks/toryo-guard.sh` and register it in `.claude/settings.json`:
+[../assets/guard-hook.py](../assets/guard-hook.py) is a `PreToolUse` hook on `Bash`; it needs `python3`. Copy it to
+`.claude/hooks/toryo-guard.py` and register it in `.claude/settings.json`:
 
 ```json
 {
@@ -54,20 +54,25 @@ file when notified. Agents run their checks in the foreground. Never read an exi
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/toryo-guard.sh" }]
+        "hooks": [{ "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/toryo-guard.py" }]
       }
     ]
   }
 }
 ```
 
-It refuses, with its reason:
+It splits the command the way the shell does (quotes, `&&`, `;`, newlines, subshells, `cd`, `git -C`, `~` and
+variables it can see) and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
-  worktree with `git -C <worktree> commit`;
+  worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C "$VAR"` it cannot expand)
+  is refused too: write the path out;
 - a `git worktree add` past the setup file's `Worktree cap:`;
-- a command matching a line of the setup file's ` ```guard ` block, written `<extended regex> :: <reason>`.
+- a simple command matching a line of the setup file's ` ```guard ` block, written `<Python regex> :: <reason>`. Each
+  pattern is matched against one command at a time, between `&&`, `;` and `|`.
 
-It matches words anywhere in the command, so pull request, issue and commit text goes through `--body-file` or `-F`.
-It needs `python3` or `jq` to read the hook input. `bash .claude/hooks/toryo-guard.sh --self-test` checks it in a
+It reads the setup file of the session's project (`$CLAUDE_PROJECT_DIR`). A guard line it cannot use, or input it
+cannot read, gives exit 1: the command runs and the operator sees the message. It reads the command's words, so it
+catches slips, not an agent set on getting round it. A guard pattern also sees quoted text, such as a commit message:
+pass long text with `--body-file` or `-F`. `python3 .claude/hooks/toryo-guard.py --self-test` checks it in a
 throwaway repository and ends with `self-test: clean`.

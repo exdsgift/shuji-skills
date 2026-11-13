@@ -5,7 +5,7 @@
   "evals": [
     {
       "id": "pick-next-disjoint",
-      "prompt": "Mode: autonomous. Ticket #41 is N: its draft PR #87 is open and in high review. `gh pr diff 87 --name-only` prints:\nsrc/widgets/pricing.py\ntests/test_pricing.py\nchangelog.d/41.md\n\nThe setup file says: hot files are src/widgets/registry.py and tests/conftest.py; changelog.d/ is a one-file-per-entry registry.\n\nThe queue in map issue #10, in order:\n| # | Ticket | Track | Files it will touch |\n| 1 | #42 tiered discounts | A | src/widgets/discounts.py, tests/test_discounts.py. Blocked by: #41 |\n| 2 | #43 round prices to cents | B | src/widgets/pricing.py, tests/test_pricing.py |\n| 3 | #44 CSV export of orders | B | src/widgets/export.py, tests/test_export.py, changelog.d/44.md |\n| 4 | #45 typo in the README | C | README.md |\n\nWhich ticket do you start now as N+1, and what do you do to start it?",
+      "prompt": "Mode: autonomous. Ticket #41 is N: its draft PR #87 is open and in high review. `gh pr diff 87 --name-only` prints:\nsrc/widgets/pricing.py\ntests/test_pricing.py\nchangelog.d/41.md\n\nThe setup file says: hot files are src/widgets/registry.py and tests/conftest.py; changelog.d/ is a one-file-per-entry registry.\n\nThe queue in map issue #10, in order:\n| # | Ticket | Track | Files it will touch |\n| 1 | #42 tiered discounts | A | src/widgets/discounts.py, tests/test_discounts.py. Blocked by: #41 |\n| 2 | #43 round prices to cents | A | src/widgets/pricing.py, tests/test_pricing.py |\n| 3 | #44 CSV export of orders | B | src/widgets/export.py, tests/test_export.py, changelog.d/44.md |\n| 4 | #45 typo in the README | C | README.md |\n\nWhich ticket do you start now as N+1, and what do you do to start it?",
       "expected_output": "Starts #44: #42 is blocked by #41, #43 overlaps PR #87 on pricing.py and its test, and #44 overlaps only on changelog.d/, a one-file-per-entry registry where overlap is allowed. Moves #44 to In Progress, writes its brief to a file and launches the executor on it.",
       "assertions": [
         "Picks #44 as N+1",
@@ -82,7 +82,7 @@
       "prompt": "The setup file says: executor model opus; reviewer models in order of preference: fable, then sonnet. You launched the reviewer for PR #87 on fable, and it replied in one line: \"model fable is not available on this account\". A probe shows sonnet is not available either. What do you do?",
       "expected_output": "Tries the next listed model, sonnet, and since it is refused too, falls back to the executor's model (opus) for a fresh-context review rather than skipping it; says so on the PR, and later in the closing comment.",
       "assertions": [
-        "Tries sonnet, the next model in the list, before any fallback",
+        "Accounts for sonnet, the next model in the list, before any fallback",
         "Runs the review anyway on the executor's model, in a fresh context, rather than skipping it or reviewing in the master's own context",
         "Marks the PR as reviewed on the executor's model",
         "Says the closing comment will name the fallback too"

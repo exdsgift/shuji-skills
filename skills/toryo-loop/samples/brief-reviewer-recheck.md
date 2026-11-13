@@ -1,9 +1,11 @@
 # Re-check brief: pull request #87, low
 
-Sent with SendMessage to the reviewer that ran the high review.
+Sent with SendMessage to the reviewer that ran the high review. Ticket #41; fetch with
+`git fetch origin main pull/87/head:pr/87`.
 
 The head moved from `3f2a9c1` to `b7e04d5`. Review only `git diff 3f2a9c1..b7e04d5`, and skip the lines that came from
-merging origin/main (`git range-diff origin/main 3f2a9c1 b7e04d5` shows which).
+merging origin/main (`git range-diff origin/main 3f2a9c1 b7e04d5` shows which). The merge `a0c3e19` is read on its own:
+`git show --remerge-diff a0c3e19` shows what its conflict resolution changed.
 
 ## The master's decision on each finding
 
@@ -25,3 +27,7 @@ merging origin/main (`git range-diff origin/main 3f2a9c1 b7e04d5` shows which).
 - CI on `b7e04d5`, from `gh pr checks 87`.
 
 Reply "clean", or the findings with their proof, labelled as before.
+
+{machine rules}
+- The shell is zsh on macOS: BSD `sed -i` needs an empty suffix (`sed -i ''`); `gsed` is the GNU one.
+- `uv` lives in `~/.local/bin`, which a non-login shell may not have on `PATH`.

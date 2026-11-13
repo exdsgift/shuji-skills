@@ -1,18 +1,20 @@
 stateDiagram-v2
   accTitle: The three autonomy modes
-  accDescr: The operator starts the master in one of three modes. Autonomous keeps taking queue rows until the queue is empty or every row waits on a decision. Finish and stop lands what is in flight and takes nothing new. One ticket lands one and reports. Any mode stops on an unexplained red check or a safety rule, and waits for the operator's go.
-  direction LR
+  accDescr: The operator starts the master in one of three modes, finish and stop when they name none. Autonomous keeps taking queue rows until the queue is empty or every row waits on a decision. Finish and stop lands what is in flight and takes nothing new. One ticket lands one and reports. Any mode stops on an unexplained red check or a safety rule and reports; the operator's go starts it again.
   state "Autonomous" as Auto
   state "Finish and stop" as Finish
   state "One ticket" as One
   state "Stopped, report sent" as Stopped
   state "Blocked, operator asked" as Blocked
+  [*] --> Finish : default
   [*] --> Auto : keep going
   [*] --> One : one ticket
   Auto --> Finish : finish and stop
+  Auto --> Blocked : unexplained red or safety rule
+  Finish --> Blocked : unexplained red or safety rule
+  One --> Blocked : unexplained red or safety rule
   Auto --> Stopped : queue empty or all rows blocked
   Finish --> Stopped : in-flight tickets landed
   One --> Stopped : ticket landed
-  Auto --> Blocked : unexplained red or safety rule
-  Blocked --> Auto : operator's go
+  Blocked --> Stopped : reported
   Stopped --> Auto : operator's go

@@ -67,6 +67,7 @@ hand; mark a value nobody chose `(default)`.
 - Deferred issue: #11
 - Nits issue: #12
 - Decision label: `decision`
+- In-progress marker: label `status:in-progress`
 - Mirror: none
 - Offline-check registry: `docs/live-checks.md`
 - Label taxonomy: `docs/labels.md`
@@ -78,8 +79,8 @@ hand; mark a value nobody chose `(default)`.
 - Literal policies: no customer name or API key in a test fixture
 
 ```guard
-rm -rf (\./)?data(/|$| ) :: data/ holds the customer export fixtures and is not regenerable
-git push .*--force.* main :: main is never force-pushed
+^rm\b.*\s(\./)?data(/|\s|$) :: data/ holds the customer export fixtures and is not regenerable
+^git\b.*\bpush\b.*\s(--force|-f\b|\+) :: force-pushing is the operator's, never an agent's
 ```
 
 ## Trials

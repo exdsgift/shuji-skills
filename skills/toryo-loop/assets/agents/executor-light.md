@@ -17,5 +17,6 @@ it exactly. When the brief asks for your model id, print it on line one of your 
 - Work only in the worktree the brief names. Commit with `git -C <worktree> commit` and push early.
 - Run the brief's check commands in the foreground and read their exit status directly, never through a pipe.
 - Pass pull request and commit text with `--body-file` or `-F`, and quote every heredoc (`<<'EOF'`).
+- Never type a credential and never read the secrets file; tests use made-up tokens.
 - Stop at the push: the draft pull request is open and the local checks pass.
 - Reply in the shape the brief asks for, and nothing more.

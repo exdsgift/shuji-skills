@@ -67,6 +67,7 @@ hand; mark a value nobody chose `(default)`.
 - Deferred issue: #<n>
 - Nits issue: #<n>
 - Decision label: `<decision>`
+- In-progress marker: <a label such as `<status:in-progress>`, or a project status>
 - Mirror: <tracker and project, or none>; sync traps: <for example "Fixes #N" does not move it>
 - Offline-check registry: <file listing checks that need real hardware or a live service, or none>
 - Label taxonomy: <where it is documented>
@@ -78,7 +79,7 @@ hand; mark a value nobody chose `(default)`.
 - Literal policies: <values that never go on the default branch, or none>
 
 ```guard
-<extended regex> :: <why it is refused>
+<Python regex, matched against one command at a time> :: <why it is refused>
 ```
 
 ## Trials

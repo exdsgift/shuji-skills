@@ -12,7 +12,8 @@ Read this before launching a review, and again when a report comes back.
 - The brief names where to look hardest: fail-open paths, units and edge cases, the interaction with what just
   landed, what CI did not run, tests that cannot fail, and docs against the code.
 - When code and docs disagree, the code is the truth: the fix updates the doc in the same change, or the gap is filed.
-- A rebase or default-branch merge whose `git range-diff` shows only the default branch's lines gets no review.
+- A rebase or default-branch merge whose `git range-diff` shows only the default branch's lines, and whose merges
+  resolved no conflict (`git show --remerge-diff <merge>` prints nothing), gets no review.
 - What only real hardware or a live service can show is built minimal and tested offline; its live check goes into
   the setup file's offline-check registry. A hypothetical case gets no review round.
 
@@ -51,9 +52,9 @@ Y" line to the deferred issue when a better option waits. The round asks the ope
 ## The low re-check
 
 SendMessage to the reviewer that ran the high review, through the re-check brief: the head moved from `<old>` to
-`<new>`; review `git diff <old>..<new>` only, skipping the default branch's merged lines; check each finding against the
-master's decision. It replies "clean", or the findings with their proof. A bug it proves gets one more small fix and a
-re-check of that commit alone.
+`<new>`; review `git diff <old>..<new>` only, skipping the default branch's merged lines but reading each merge's own
+resolution (`git show --remerge-diff <merge>`); check each finding against the master's decision. It replies "clean", or
+the findings with their proof. A bug it proves gets one more small fix and a re-check of that commit alone.
 
 ## The deep audit
 

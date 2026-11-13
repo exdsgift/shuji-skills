@@ -4,8 +4,8 @@ Print your exact model id on line one of your reply. If `fable` is refused, say 
 
 ## Setup
 
-Read-only: edit no file, post no comment, push nothing, change no state. Fetch the head with
-`git fetch origin pull/87/head:pr/87` and read `git diff origin/main...pr/87` and `gh pr view 87`.
+Read-only: edit no file, post no comment, push nothing, change no state. Fetch with
+`git fetch origin main pull/87/head:pr/87` and read `git diff origin/main...pr/87` and `gh pr view 87`.
 
 ## The spec
 
@@ -42,3 +42,7 @@ review by hand at the same depth and say so. Read CI with `gh pr checks 87` and 
 
 Findings, most severe first, each with `file:line`, its proof and its label. Then the answers to the questions. Then
 what you ran and what you did not verify. No preamble.
+
+{machine rules}
+- The shell is zsh on macOS: BSD `sed -i` needs an empty suffix (`sed -i ''`); `gsed` is the GNU one.
+- `uv` lives in `~/.local/bin`, which a non-login shell may not have on `PATH`.

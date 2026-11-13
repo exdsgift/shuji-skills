@@ -25,8 +25,8 @@ Read it with `gh issue view 41 --comments`. In short: orders of 50 or more widge
 
 ## Work in flight
 
-- #44 CSV export of orders, PR #88, building: `src/widgets/export.py`, `tests/test_export.py`, `changelog.d/44.md`. No
-  overlap with this ticket except `changelog.d/`, a one-file-per-entry registry.
+- #40 Currency symbols on invoices, PR #86, in high review: `src/widgets/invoice.py`, `tests/test_invoice.py`,
+  `changelog.d/40.md`. No overlap with this ticket except `changelog.d/`, a one-file-per-entry registry.
 
 ## The plan answers
 

@@ -1,6 +1,6 @@
 gantt
   accTitle: Two tickets in flight
-  accDescr: Ticket N+1 starts building when N's draft PR goes to review, opens its own PR when N goes into landing, and merges main once N lands; ticket N+2 starts only after N has landed, so never more than two are in flight. Durations are illustrative.
+  accDescr: Ticket N+1 starts building when N's draft PR goes to review, gets its own review when N goes into landing, and merges main once N lands; ticket N+2 starts only after N has landed, so never more than two are in flight. Durations are illustrative.
   title Two tickets in flight, never three
   dateFormat HH:mm
   axisFormat %H:%M
@@ -12,7 +12,7 @@ gantt
     Land                   :crit, n4, after n3, 30m
   section Ticket N+1
     Build, disjoint files  :m1, after n1, 80m
-    Draft PR, high review  :m2, after m1, 30m
+    High review            :m2, after m1, 30m
     Merge main, checks     :m3, after n4, 20m
   section Ticket N+2
     Build                  :p1, after n4, 60m

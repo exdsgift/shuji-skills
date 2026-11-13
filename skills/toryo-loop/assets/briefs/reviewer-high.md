@@ -5,8 +5,8 @@ refused, say so in one line and stop.
 
 ## Setup
 
-Read-only: edit no file, post no comment, push nothing, change no state. Fetch the head with
-`git fetch origin pull/<N>/head:pr/<N>` and read `git diff origin/<default>...pr/<N>` and `gh pr view <N>`.
+Read-only: edit no file, post no comment, push nothing, change no state. Fetch with
+`git fetch origin <default> pull/<N>/head:pr/<N>` and read `git diff origin/<default>...pr/<N>` and `gh pr view <N>`.
 
 ## The spec
 
@@ -40,6 +40,8 @@ declined, review by hand at the same depth and say so. Read CI with `gh pr check
 
 Findings, most severe first, each with `file:line`, its proof and its label. Then the answers to the questions. Then
 what you ran and what you did not verify. No preamble.
+
+{machine rules}
 
 ---
 

@@ -10,7 +10,8 @@ loop follows this protocol, and the operator picks.
 2. Measure billed spend per agent and per ticket, not context size: an agent's final context is about 80 times
    smaller than what it spent. Measure also fix rounds per ticket and bug-level findings per high review.
 3. Stop at once when bug-level findings or fix rounds rise.
-4. Close with one line in the Trials section: kept, changed or dropped, with the numbers.
+4. Close with one line in the Trials section: kept, changed or dropped, with the numbers. Both lines reach the setup
+   file through a track C pull request.
 
 ## The defaults the trials proved
 
