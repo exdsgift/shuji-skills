@@ -27,7 +27,10 @@ _VALUE = "|".join(re.escape(o) for o in sorted(PATH_OPTIONS | GIT_VALUE_OPTIONS)
 _GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
 RAW_COMMIT = re.compile(_GIT + r"[\"']?commit[\"']?(?![\w-])")
 RAW_WORKTREE_ADD = re.compile(_GIT + r"[\"']?worktree[\"']?[ \t]+[\"']?add[\"']?(?![\w-])")
-RAW_CD = re.compile(r"(?<![\w.$/-])(?:cd|pushd)((?:[ \t]+(?:\"[^\"]*\"|'[^']*'|[^\s;&|()<>]+))+)")
+_ARG = r"(?:\"[^\"]*\"|'[^']*'|[^\s;&|()<>\"'])+"
+_REDIRECT = r"\d*(?:>>?|<<?|>&|<&)[ \t]*" + _ARG
+RAW_CD = re.compile(r"(?<![\w.$/-])(?:cd|pushd)((?:[ \t]+(?:" + _REDIRECT + "|" + _ARG + "))+)")
+SUBST = "$TORYO_SUBST"  # a $(...) or backtick span: its value is unknown to the hook
 GIT_ENV = re.compile(r"^(GIT_DIR|GIT_WORK_TREE)=")
 SETTERS = {"export", "declare", "typeset", "readonly", "local"}
 UNREADABLE = {"eval", "source", "."}  # they run text the hook does not read: any checkout is possible after them
@@ -80,9 +83,9 @@ def opaque(command):
     """What the raw scan reads, heredoc bodies included: the text with each `...` and $(...) span made one word,
     then the inside of each span, read the same way."""
     spans = []
-    text = re.sub(r"`([^`]*)`", lambda m: spans.append(m.group(1)) or "X", command.replace("\\\n", " "))
+    text = re.sub(r"`([^`]*)`", lambda m: spans.append(m.group(1)) or SUBST, command.replace("\\\n", " "))
     while True:
-        shorter = re.sub(r"\$\(([^()]*)\)", lambda m: spans.append(m.group(1)) or "X", text)
+        shorter = re.sub(r"\$\(([^()]*)\)", lambda m: spans.append(m.group(1)) or SUBST, text)
         if shorter == text:
             return [text] + spans
         text = shorter
@@ -151,7 +154,7 @@ def resolve(path, base):
     if re.search(r"\$\{?(OLDPWD|PWD)\b", path):
         return None
     path = os.path.expandvars(os.path.expanduser(path))
-    if "$" in path or "`" in path or path.startswith("~"):  # ~-, ~+, ~N and an unknown ~user stay unexpanded
+    if any(c in path for c in "$`*?[") or path.startswith("~"):  # ~-, ~+, ~N, ~user unknown; globs too
         return None
     if os.path.isabs(path):
         return os.path.normpath(path)
@@ -190,6 +193,23 @@ def moved(here, target):
     return here | frozenset(resolve(target, base) for base in here)
 
 
+def cd_target(args):
+    """Where a `cd` or `pushd` goes, from its arguments: redirections and options dropped; `-` is unknown."""
+    rest, i = [], 0
+    while i < len(args):
+        m = re.match(r"^\d*(>>?|<<?|>&|<&)(.*)$", args[i])
+        if m:
+            i += 1 if m.group(2) else 2  # a bare ">" takes the next word as its file
+            continue
+        rest.append(args[i])
+        i += 1
+    while rest and rest[0].startswith("-") and rest[0] != "-":
+        if rest.pop(0) == "--":
+            break
+    target = rest[0] if rest else "~"
+    return "$TORYO_UNKNOWN" if target == "-" else target
+
+
 def named_dirs(raws, cwd):
     """The session's checkout and every directory a `cd` or `pushd` in the raw text names, wherever it stands, so a
     reading slip cannot hide one: a commit not written with an absolute `-C` is checked in each."""
@@ -200,14 +220,12 @@ def named_dirs(raws, cwd):
                 args = shlex.split(m.group(1))
             except ValueError:
                 args = m.group(1).split()
-            while args and args[0].startswith("-") and args[0] != "-":
-                if args.pop(0) == "--":
-                    break
-            if args:
-                targets.append("$TORYO_UNKNOWN" if args[0] == "-" else args[0])
+            targets.append(cd_target(args))
     bases = {cwd}
-    for _ in range(2):  # a relative target may be relative to another one
-        bases |= {resolve(t, b) for t in targets for b in list(bases) if b is not None}
+    for target in targets:  # in the order the shell meets them: each may be relative to where the earlier ones led
+        bases |= {resolve(target, b) for b in bases if b is not None}
+        if len(bases) > 256:
+            return frozenset(bases | {None})
     return frozenset(bases)
 
 
@@ -262,12 +280,7 @@ def read(command, cwd):
             pattern = command_words[0] == "case" or (pattern and command_words[0] != "esac")
             opened = opened and command_words[0] != "case"
             if command_words[0] in ("cd", "pushd"):
-                args = command_words[1:]
-                while args and args[0].startswith("-") and args[0] != "-":
-                    if args.pop(0) == "--":
-                        break
-                target = args[0] if args else "~"
-                here = moved(here, "$TORYO_UNKNOWN" if target == "-" else target)
+                here = moved(here, cd_target(command_words[1:]))
                 seen |= here
             elif command_words[0] == "popd":
                 here = frozenset(seen)  # the stack is not followed: any checkout seen so far
@@ -374,6 +387,11 @@ def self_test():
     with open(os.path.join(plain, SETUP), "w", newline="") as f:
         f.write("```guard\r\n^rm -rf data\\b :: data is precious\r\ndanger (zone :: x\r\n :: y\r\n```\r\n")
     on_main, unplaced = "Commit in the ticket's worktree", "cannot place"
+
+    def slip(cd_line):  # a comment ")" inside a case, which the reader misreads; the raw cd scan must hold anyway
+        return (f"(\n  {cd_line}\n  case \"$1\" in\n    # 1) nothing to do\n    *) git fetch -q . ;;\n  esac\n"
+                "  git commit -m x\n)")
+
     cases = [  # expected exit, command, cwd, project, a word the message must hold
         (2, "git commit -m x", repo, repo, on_main),
         (0, f"git -C {wt} commit -m x", repo, repo, ""),
@@ -505,6 +523,17 @@ def self_test():
          wt, repo, ""),
         (0, f"( cd {repo} && case x in (a) : ;;(x) git status ;; esac ) ; git -C {wt} commit -m x", wt, repo, ""),
         (0, f"v=$(case a in\n(a) echo 1 ;;\n(b) echo 2 ;;\nesac)\ngit -C {wt} commit -m x", repo, repo, ""),
+        (2, slip('cd "$(git rev-parse --git-common-dir)/.."'), wt, repo, "cannot tell"),
+        (2, slip(f"cd `git -C {repo} rev-parse --show-toplevel`"), wt, repo, "cannot tell"),
+        (2, slip('cd "$HOME"/repo'), wt, repo, on_main),
+        (2, slip(f'cd "{wt}"/../repo'), wt, repo, on_main),
+        (2, slip("cd a; cd b; cd ../../../repo"), wt, repo, on_main),
+        (2, f"cd {repo}*; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"git -C {repo}* commit -m x", wt, repo, "cannot tell"),
+        (2, f"cd >/dev/null {repo}; git commit -m x", wt, repo, on_main),
+        (2, f"pushd > /dev/null {repo}; git commit -m x", wt, repo, on_main),
+        (2, slip(f"cd >/dev/null 2>&1 {repo}"), wt, repo, on_main),
+        (0, f"cd >/dev/null {repo}; git -C {wt} commit -m x", wt, repo, ""),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),

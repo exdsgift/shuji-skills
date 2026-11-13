@@ -81,8 +81,9 @@ checkout each commit acts on, and refuses, with its reason:
 It reads the setup file of the session's project (`$CLAUDE_PROJECT_DIR`). A guard line it cannot use, or input it
 cannot read, gives exit 1: the command runs and the operator sees the message. It catches slips, not an agent set on
 getting round it: after `eval` or `source`, a checkout not written as an absolute path counts as unknown; after a
-`GIT_DIR` or `GIT_WORK_TREE` setting, every checkout does; so do `~-`, `~+`, `~N`, `$PWD` and `$OLDPWD`. What a
-sourced script, `CDPATH`, an alias or a shell function does is beyond it. Text that names a refused command, in a
-commit message, a pull request body or a file written through a heredoc, goes to a file first (the editor tool), then
-through `--body-file` or `-F`. `python3 .claude/hooks/toryo-guard.py --self-test` checks it in a throwaway
-repository and ends with `self-test: clean`.
+`GIT_DIR` or `GIT_WORK_TREE` setting, every checkout does; so do `~-`, `~+`, `~N`, `$PWD`, `$OLDPWD`, a `$(...)`
+or backticks, and a path with a glob. What a sourced script, `CDPATH`, an alias or a shell function does is beyond
+it. Text that names a refused command, in a commit message, a pull request body or a file written through a heredoc,
+goes to a file first (the editor tool), then through `--body-file` or `-F`.
+`python3 .claude/hooks/toryo-guard.py --self-test` checks it in a throwaway repository and ends with
+`self-test: clean`.
