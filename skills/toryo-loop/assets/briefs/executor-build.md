@@ -35,7 +35,7 @@ before editing it.
 1. Worktree, from a fresh fetch:
    `git fetch origin && git worktree add <worktree root>/<short> -b <type>/<short> origin/<default>`.
 2. Tests first: <the tests, with inputs and expected outputs>. Each fails on origin/<default>. Commit and push.
-3. The change. Commit and push after each step, with `git -C <worktree> commit`.
+3. The change. Commit and push after each step, with `git -C <worktree> commit` and the worktree's absolute path.
 4. Local checks, in the foreground: `<check commands>`. Each exits 0 on the head.
 5. Docs and changelog: <the setup file's convention>.
 6. Draft pull request:

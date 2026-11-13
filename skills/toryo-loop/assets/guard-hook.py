@@ -124,6 +124,24 @@ def tokens(command):
         return out
 
 
+def assignments(words):
+    """The variable settings a command line makes: its leading assignments, those after `env`, and what `export`,
+    `declare` or `typeset` sets."""
+    found, rest = [], list(words)
+    while rest:
+        if re.match(r"^[A-Za-z_]\w*=", rest[0]):
+            found.append(rest.pop(0))
+        elif rest[0] in KEYWORDS or rest[0] in WRAPPERS:
+            rest.pop(0)
+            while rest and rest[0].startswith("-"):
+                rest.pop(0)
+        else:
+            break
+    if rest and rest[0] in ("export", "declare", "typeset"):
+        found += [w for w in rest[1:] if not w.startswith("-")]
+    return found
+
+
 def simple(words):
     """The words that name the command: assignments, keywords, wrappers and the wrappers' options dropped."""
     while words:
@@ -140,6 +158,8 @@ def simple(words):
 
 def resolve(path, base):
     """An absolute path, or None when the shell would expand something the hook cannot see."""
+    if path.startswith(("~-", "~+")):
+        return None
     path = os.path.expandvars(os.path.expanduser(path))
     if "$" in path or "`" in path:
         return None
@@ -184,7 +204,7 @@ def read(command, cwd):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
     act on (None for one the hook cannot see)."""
     here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
-    seen, cases, git_env = set(here), 0, False
+    seen, cases, pattern, git_env = set(here), 0, False, False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
         if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
@@ -206,11 +226,12 @@ def read(command, cwd):
         if not separator:
             words.append(token)
             continue
-        git_env = git_env or any(GIT_ENV.match(w) for w in words)  # GIT_DIR moves every later git call
+        git_env = git_env or any(GIT_ENV.match(w) for w in assignments(words))  # it moves every later git call
         command_words = simple(words)
         if command_words:
             commands.append(command_words)
             cases += (command_words[0] == "case") - (command_words[0] == "esac")
+            pattern = command_words[0] == "case" or (pattern and command_words[0] != "esac")
             if command_words[0] in ("cd", "pushd"):
                 args = command_words[1:]
                 while args and args[0].startswith("-") and args[0] != "-":
@@ -229,10 +250,14 @@ def read(command, cwd):
                     where = {None} if git_env else {w for _, w in placed}
                     calls.append((placed[0][0], frozenset(where)))
         words = []
-        if not cases:  # inside case ... esac, a ")" ends a pattern, not a subshell
-            stack += [here] * token.count("(")
-            for _ in range(token.count(")")):
-                here = stack.pop() if stack else here
+        parens = token
+        if cases and pattern and ")" in token:  # the ")" that ends a case pattern opens no subshell
+            parens, pattern = token.replace(")", "", 1), False
+        if cases and any(end in token for end in (";;", ";&")):
+            pattern = True
+        stack += [here] * parens.count("(")
+        for _ in range(parens.count(")")):
+            here = stack.pop() if stack else here
     return commands, calls
 
 
@@ -403,6 +428,17 @@ def self_test():
         (2, f"export GIT_WORK_TREE={repo}; git commit -m x", wt, repo, "cannot tell"),
         (2, f'git -C {wt} "commit" -m a; sudo -u bob git commit -m b', repo, repo, unplaced),
         (0, f'cd "$TORYO_UNSET" && git -C {wt} commit -m x', repo, repo, ""),
+        (0, f'eval "$TORYO_UNSET"; git -C {wt} commit -m x', repo, repo, ""),
+        (0, f"source env.sh && git -C {wt} commit -m x", repo, repo, ""),
+        (0, f'git -C {wt} commit -m "GIT_DIR=x is only text here"', repo, repo, ""),
+        (0, f"env | grep GIT_DIR= ; git -C {wt} commit -m x", repo, repo, ""),
+        (2, f"env GIT_DIR={repo}/.git git commit -m x", wt, repo, "cannot tell"),
+        (2, f"declare -x GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
+        (0, f"case x in x) ( cd {repo} && true ); git commit -m x ;; esac", wt, repo, ""),
+        (2, f"case x in\nx) cd {repo} ;;\nesac\ngit commit -m x", wt, repo, on_main),
+        (2, f"case x in\n  y) true ;;\n  x) git -C {repo} commit -m x ;;\nesac", wt, repo, on_main),
+        (2, "cd ~-; git commit -m x", wt, repo, "cannot tell"),
+        (2, "git -C ~- commit -m x", wt, repo, "cannot tell"),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),
