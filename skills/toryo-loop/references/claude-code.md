@@ -62,18 +62,23 @@ file when notified. Agents run their checks in the foreground. Never read an exi
 ```
 
 It splits the command the way the shell does (quotes, `&&`, `;`, newlines, line continuations, subshells, keywords
-such as `if` and `do`, `cd` and `pushd`, `git -C`, `~` and the variables it can see), reads a heredoc body as data,
-not as commands, and refuses, with its reason:
+such as `if` and `do`, `cd` and `pushd`, `git -C`, `~` and the variables it can see) to find the checkout each
+commit acts on, and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
   worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C` given by a variable, a
   `$(...)` or backticks it cannot expand) is refused too: write the path out;
+- a command whose raw text names more `git commit` calls than it can place: one inside quotes, in a heredoc body, or
+  in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a commit on the default
+  branch;
 - a `git worktree add` past the setup file's `Worktree cap:`;
-- a simple command matching a line of the setup file's ` ```guard ` block, written `<Python regex> :: <reason>`. Each
-  pattern is matched against one command at a time, between `&&`, `;` and `|`.
+- a command matching a line of the setup file's ` ```guard ` block, written `<Python regex> :: <reason>`. Each
+  pattern is matched against each command it reads, between `&&`, `;` and `|`, and against each line of the raw
+  text, heredoc bodies included.
 
 It reads the setup file of the session's project (`$CLAUDE_PROJECT_DIR`). A guard line it cannot use, or input it
-cannot read, gives exit 1: the command runs and the operator sees the message. It reads the command's words, so it
-catches slips, not an agent set on getting round it. A guard pattern also sees quoted text, such as a commit message:
-pass long text with `--body-file` or `-F`. `python3 .claude/hooks/toryo-guard.py --self-test` checks it in a
-throwaway repository and ends with `self-test: clean`.
+cannot read, gives exit 1: the command runs and the operator sees the message. It catches slips, not an agent set on
+getting round it. Text that names a refused command, in a commit message, a pull request body or a file written
+through a heredoc, goes to a file first (the editor tool), then through `--body-file` or `-F`.
+`python3 .claude/hooks/toryo-guard.py --self-test` checks it in a throwaway repository and ends with
+`self-test: clean`.
