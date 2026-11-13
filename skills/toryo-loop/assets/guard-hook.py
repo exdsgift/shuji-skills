@@ -25,8 +25,10 @@ GIT_VALUE_OPTIONS = {"-c", "--git-dir", "--namespace", "--config-env", "--super-
 HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][\w.-]*)\2")
 _VALUE = "|".join(re.escape(o) for o in sorted(PATH_OPTIONS | GIT_VALUE_OPTIONS))
 _GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
-RAW_COMMIT = re.compile(_GIT + r"commit(?![\w-])")
-RAW_WORKTREE_ADD = re.compile(_GIT + r"worktree[ \t]+add(?![\w-])")
+RAW_COMMIT = re.compile(_GIT + r"[\"']?commit[\"']?(?![\w-])")
+RAW_WORKTREE_ADD = re.compile(_GIT + r"[\"']?worktree[\"']?[ \t]+[\"']?add[\"']?(?![\w-])")
+GIT_ENV = re.compile(r"^(GIT_DIR|GIT_WORK_TREE)=")
+UNREADABLE = {"eval", "source", "."}  # they run text the hook does not read: any checkout is possible after them
 
 
 class Refuse(Exception):
@@ -138,12 +140,12 @@ def simple(words):
 
 def resolve(path, base):
     """An absolute path, or None when the shell would expand something the hook cannot see."""
-    if base is None:
-        return None
     path = os.path.expandvars(os.path.expanduser(path))
     if "$" in path or "`" in path:
         return None
-    return os.path.normpath(os.path.join(base, path))
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    return None if base is None else os.path.normpath(os.path.join(base, path))
 
 
 def git_call(words, where):
@@ -182,7 +184,7 @@ def read(command, cwd):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
     act on (None for one the hook cannot see)."""
     here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
-    seen = set(here)
+    seen, cases, git_env = set(here), 0, False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
         if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
@@ -204,24 +206,33 @@ def read(command, cwd):
         if not separator:
             words.append(token)
             continue
+        git_env = git_env or any(GIT_ENV.match(w) for w in words)  # GIT_DIR moves every later git call
         command_words = simple(words)
         if command_words:
             commands.append(command_words)
+            cases += (command_words[0] == "case") - (command_words[0] == "esac")
             if command_words[0] in ("cd", "pushd"):
-                args = [w for w in command_words[1:] if not w.startswith("-")]
-                target = "$TORYO_UNKNOWN" if command_words[1:] == ["-"] else (args[0] if args else "~")
-                here = moved(here, target)
+                args = command_words[1:]
+                while args and args[0].startswith("-") and args[0] != "-":
+                    if args.pop(0) == "--":
+                        break
+                target = args[0] if args else "~"
+                here = moved(here, "$TORYO_UNKNOWN" if target == "-" else target)
                 seen |= here
             elif command_words[0] == "popd":
                 here = frozenset(seen)  # the stack is not followed: any checkout seen so far
+            elif command_words[0] in UNREADABLE:
+                here = here | {None}
             elif os.path.basename(command_words[0]) == "git":
-                placed = [git_call(command_words, base) for base in here]
+                placed = [git_call(command_words, None if git_env else base) for base in here]
                 if placed[0]:
-                    calls.append((placed[0][0], frozenset(where for _, where in placed)))
+                    where = {None} if git_env else {w for _, w in placed}
+                    calls.append((placed[0][0], frozenset(where)))
         words = []
-        stack += [here] * token.count("(")
-        for _ in range(token.count(")")):
-            here = stack.pop() if stack else here
+        if not cases:  # inside case ... esac, a ")" ends a pattern, not a subshell
+            stack += [here] * token.count("(")
+            for _ in range(token.count(")")):
+                here = stack.pop() if stack else here
     return commands, calls
 
 
@@ -382,6 +393,16 @@ def self_test():
         (2, f"cd {wt}/typo/..; git commit -m x", repo, repo, on_main),
         (2, f"git status # clean; cd {wt} next\ngit commit -m x", repo, repo, on_main),
         (2, f"cd {wt}; cd -; git commit -m x", repo, repo, ""),
+        (2, "cd -- -; git commit -m x", wt, repo, "cannot tell"),
+        (2, "cd -P -; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"( cd {repo}; case x in x) git commit -m x ;; esac )", wt, repo, on_main),
+        (0, f"case x in x) echo hi ;; esac; git -C {wt} commit -m x", repo, repo, ""),
+        (2, f'eval "cd {repo}"; git commit -m x', wt, repo, "cannot tell"),
+        (2, f"source env.sh; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"GIT_DIR={repo}/.git git commit -m x", wt, repo, "cannot tell"),
+        (2, f"export GIT_WORK_TREE={repo}; git commit -m x", wt, repo, "cannot tell"),
+        (2, f'git -C {wt} "commit" -m a; sudo -u bob git commit -m b', repo, repo, unplaced),
+        (0, f'cd "$TORYO_UNSET" && git -C {wt} commit -m x', repo, repo, ""),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),
