@@ -67,8 +67,9 @@ commit acts on, and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
   worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C` given by a variable, a
-  `$(...)` or backticks it cannot expand) is refused too: write the path out. A `cd` never takes the guard off a checkout:
-  after one, a commit is checked in every checkout the command has named, so commit with `git -C <worktree> commit`;
+  `$(...)` or backticks it cannot expand) is refused too: write the path out. A `cd` never takes the guard off a
+  checkout: after one, a commit is checked in every checkout the command has named, so commit with
+  `git -C <worktree> commit`;
 - a command whose raw text names more `git commit` calls than it can place: one inside quotes, a heredoc body, a
   `$(...)` or backticks, or in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a
   commit on the default branch;
