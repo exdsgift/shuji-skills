@@ -67,14 +67,15 @@ commit acts on, and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
   worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C` given by a variable, a
-  `$(...)` or backticks it cannot expand) is refused too: write the path out;
-- a command whose raw text names more `git commit` calls than it can place: one inside quotes, in a heredoc body, or
-  in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a commit on the default
-  branch;
+  `$(...)` or backticks it cannot expand) is refused too: write the path out. A `cd` that may fail or may not run
+  (a missing directory, after `||`, under `if`) leaves the commit checked against every checkout the shell may be in;
+- a command whose raw text names more `git commit` calls than it can place: one inside quotes, a heredoc body, a
+  `$(...)` or backticks, or in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a
+  commit on the default branch;
 - a `git worktree add` past the setup file's `Worktree cap:`;
 - a command matching a line of the setup file's ` ```guard ` block, written `<Python regex> :: <reason>`. Each
-  pattern is matched against each command it reads, between `&&`, `;` and `|`, and against each line of the raw
-  text, heredoc bodies included.
+  pattern is matched against each command it reads, between `&&`, `;` and `|`, and against each command of the raw
+  text and of each `$(...)` or backtick span in it, heredoc bodies included.
 
 It reads the setup file of the session's project (`$CLAUDE_PROJECT_DIR`). A guard line it cannot use, or input it
 cannot read, gives exit 1: the command runs and the operator sees the message. It catches slips, not an agent set on

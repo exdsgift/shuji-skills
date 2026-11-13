@@ -20,10 +20,11 @@ SETUP = os.path.join("docs", "agents", "toryo-loop.md")
 PUNCTUATION = ";&|()\n"
 KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "{"}
 WRAPPERS = {"builtin", "command", "env", "exec", "nice", "nohup", "sudo", "time"}
+PATH_OPTIONS = {"-C", "--work-tree"}  # options whose value moves the checkout a git call acts on
 GIT_VALUE_OPTIONS = {"-c", "--git-dir", "--namespace", "--config-env", "--super-prefix", "--attr-source"}
 HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][\w.-]*)\2")
-_GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:-C|-c|--git-dir|--work-tree|--namespace|--config-env)[ \t]+"
-        r"(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
+_VALUE = "|".join(re.escape(o) for o in sorted(PATH_OPTIONS | GIT_VALUE_OPTIONS))
+_GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']*'|\S+)|-\S+))*[ \t]+")
 RAW_COMMIT = re.compile(_GIT + r"commit(?![\w-])")
 RAW_WORKTREE_ADD = re.compile(_GIT + r"worktree[ \t]+add(?![\w-])")
 
@@ -72,12 +73,14 @@ def setup_values(project):
 
 
 def opaque(command):
-    """The raw text, each `...` and $(...) span made one word: what the raw scan reads, heredoc bodies included."""
-    text = re.sub(r"`[^`]*`", "X", command.replace("\\\n", " "))
+    """What the raw scan reads, heredoc bodies included: the text with each `...` and $(...) span made one word,
+    then the inside of each span, read the same way."""
+    spans = []
+    text = re.sub(r"`([^`]*)`", lambda m: spans.append(m.group(1)) or "X", command.replace("\\\n", " "))
     while True:
-        shorter = re.sub(r"\$\([^()]*\)", "X", text)
+        shorter = re.sub(r"\$\(([^()]*)\)", lambda m: spans.append(m.group(1)) or "X", text)
         if shorter == text:
-            return text
+            return [text] + spans
         text = shorter
 
 
@@ -148,12 +151,15 @@ def git_call(words, where):
     i = 1
     while i < len(words) and words[i].startswith("-"):
         word = words[i]
-        if word in ("-C", "--work-tree") and i + 1 < len(words):
+        if word in PATH_OPTIONS and i + 1 < len(words):
             where = resolve(words[i + 1], where)
             i += 2
         elif word.startswith("--work-tree="):
             where = resolve(word.split("=", 1)[1], where)
             i += 1
+        elif word == "--git-dir" or word.startswith("--git-dir="):
+            where = None
+            i += 1 if "=" in word else 2
         elif word in GIT_VALUE_OPTIONS:
             i += 2
         else:
@@ -166,9 +172,26 @@ def git_call(words, where):
     return None
 
 
+def moved(here, target, how):
+    """The checkouts the shell may be in after `cd target`, and whether that holds only to the end of an && chain.
+
+    `how` is how the cd runs: "seq" (always), "and" (inside an && chain: what follows in the chain runs only if the cd
+    did) or "maybe" (after || or a pipe, or under a keyword). A cd that may fail or may not run adds to the checkouts.
+    """
+    targets = frozenset(resolve(target, base) for base in here)
+    sure = all(t and os.path.isdir(t) for t in targets)
+    if sure and how == "seq":
+        return targets, False
+    if sure and how == "and":
+        return targets, True
+    return here | targets, False
+
+
 def read(command, cwd):
-    """The simple commands the shell would run, and each commit and worktree-add call with its checkout."""
-    here, stack, words, depth, commands, calls = cwd, [], [], 0, [], []
+    """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
+    act on (None for one the hook cannot see)."""
+    here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
+    seen, before, chain_start, chain_only = set(here), ";", frozenset([cwd]), False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
         if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
@@ -190,17 +213,27 @@ def read(command, cwd):
         if not separator:
             words.append(token)
             continue
+        how = "and" if "&&" in before else "maybe" if "|" in before else "seq"
+        how = "maybe" if words and words[0] in KEYWORDS else how
         command_words = simple(words)
         if command_words:
             commands.append(command_words)
             if command_words[0] in ("cd", "pushd"):
                 args = [w for w in command_words[1:] if not w.startswith("-")]
-                here = None if command_words[1:] == ["-"] else resolve(args[0] if args else "~", here)
+                target = "$OLDPWD" if command_words[1:] == ["-"] else (args[0] if args else "~")
+                here, only = moved(here, target, how)
+                chain_only = chain_only or only
+                seen |= here
+            elif command_words[0] == "popd":
+                here = frozenset(seen)  # the stack is not followed: any checkout seen so far
             elif os.path.basename(command_words[0]) == "git":
-                call = git_call(command_words, here)
-                if call:
-                    calls.append(call)
-        words = []
+                placed = [git_call(command_words, base) for base in here]
+                if placed[0]:
+                    calls.append((placed[0][0], frozenset(where for _, where in placed)))
+        if "&&" not in token:  # the && chain ends: a cd it held to may not have run
+            here = here | chain_start if chain_only else here
+            chain_start, chain_only = here, False
+        words, before = [], token
         stack += [here] * token.count("(")
         for _ in range(token.count(")")):
             here = stack.pop() if stack else here
@@ -211,19 +244,21 @@ def check(command, cwd, project):
     """Raise Refuse for the first refusal; return the setup file's problems otherwise."""
     default, cap, guards, problems = setup_values(project)
     commands, calls = read(command, cwd)
-    raw = opaque(command)
-    pieces = [p.strip(" \t({!") for p in re.split(r"[;&|\n]+", raw)]
+    raws = opaque(command)
+    pieces = [p.strip(" \t({!") for raw in raws for p in re.split(r"[;&|\n]+", raw)]
     for pattern, reason in guards:
         for text in [" ".join(c) for c in commands] + pieces:
             if text and pattern.search(text):
                 raise Refuse(f"{reason} (pattern: {pattern.pattern}).")
-    commits = [where for kind, where in calls if kind == "commit"]
-    if len(commits) < len(RAW_COMMIT.findall(raw)):
+    commits = [wheres for kind, wheres in calls if kind == "commit"]
+    if len(commits) < sum(len(RAW_COMMIT.findall(raw)) for raw in raws):
         raise Refuse("this command names a `git commit` the guard cannot place. Run the commit on its own, as "
                      "git -C /absolute/path commit, and pass any text that names one through a file.")
-    adds = [where for kind, where in calls if kind == "worktree add"]
-    if RAW_WORKTREE_ADD.search(raw) and not adds:
-        adds = [cwd]
+    adds = [wheres for kind, wheres in calls if kind == "worktree add"]
+    if any(RAW_WORKTREE_ADD.search(raw) for raw in raws) and not adds:
+        adds = [frozenset([cwd])]
+    commits = [where for wheres in commits for where in wheres]
+    adds = [where for wheres in adds for where in wheres]
     for where in commits + adds:
         if where is None:
             raise Refuse("cannot tell which checkout this git call acts on. Write its path out: git -C /absolute/path.")
@@ -337,6 +372,23 @@ def self_test():
         (0, "cat > notes.md <<'EOF'\nRun the tests first, don't skip them.\nEOF\ngit status", repo, repo, ""),
         (2, "cat > notes.md <<-EOF\n\tnotes\n\tEOF\ngit commit -m x", repo, repo, on_main),
         (0, f"gh pr merge 87 --merge --match-head-commit 3f2a9c1 && git -C {wt} status", repo, repo, ""),
+        (2, "out=$(git commit -m x 2>&1); echo \"$out\"", repo, repo, unplaced),
+        (2, "$(git commit -m x)", repo, repo, unplaced),
+        (2, 'echo "$(git commit -m x)"', repo, repo, unplaced),
+        (2, "R=`git commit -m x`", repo, repo, unplaced),
+        (2, "out=$(git push --force origin main 2>&1)", repo, repo, "operator's"),
+        (2, "cd /no/such/dir\ngit commit -m x", repo, repo, on_main),
+        (2, f"cd {os.path.join(tmp, 'wt-typo')}; git commit -m x", repo, repo, on_main),
+        (2, "[ -d /no/such ] && cd /no/such; git commit -m x", repo, repo, on_main),
+        (2, f"false && cd {wt}; git commit -m x", repo, repo, on_main),
+        (2, f"if [ -d {wt} ]; then cd {wt}; fi; git commit -m x", repo, repo, on_main),
+        (2, f"pushd {wt} && git status && popd && git commit -m x", repo, repo, on_main),
+        (0, f"cd {wt} && git commit -m x", repo, repo, ""),
+        (0, f"git -C {wt} fetch origin && cd {wt} && git commit -m x", repo, repo, ""),
+        (2, f"git -C {wt} fetch origin && cd {wt} && git commit -m x; git commit -m y", repo, repo, on_main),
+        (0, f"cd {wt}\ngit add -A\ngit commit -m x", repo, repo, ""),
+        (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
+        (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),
         (1, "ls", plain, plain, "guard line 2 is not a valid regular expression"),
         (1, None, repo, repo, "could not read the hook input"),
