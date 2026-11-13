@@ -44,7 +44,7 @@
     },
     {
       "id": "false-land",
-      "prompt": "PR #87 (head branch fix/tier-pricing, worktree ../wt/tier-pricing) has clean reviews and green CI. You ran the setup file's land command as:\n\ngh pr merge 87 --merge --match-head-commit 3f2a9c1 2>&1 | tail -n 1; echo LANDED\n\nIt printed:\nX Pull request acme/widgets#87 is not mergeable: the base branch was modified\nLANDED\n\nThen `gh pr view 87 --json state -q .state` printed OPEN. Your clean-up step deletes the remote branch, the local branch, the worktree and the pr/87 ref. What do you do now?",
+      "prompt": "PR #87 (head branch fix/tier-pricing, worktree ~/src/wt/widgets/tier-pricing) has clean reviews and green CI. You ran the setup file's land command as:\n\ngh pr merge 87 --merge --match-head-commit 3f2a9c1 2>&1 | tail -n 1; echo LANDED\n\nIt printed:\nX Pull request acme/widgets#87 is not mergeable: the base branch was modified\nLANDED\n\nThen `gh pr view 87 --json state -q .state` printed OPEN. Your clean-up step deletes the remote branch, the local branch, the worktree and the pr/87 ref. What do you do now?",
       "expected_output": "Does not clean up: the PR is not MERGED, and LANDED came from the echo after a pipe, not from the merge. Main moved, so it runs the same land command again without a pipe and with the check chained by &&, confirms MERGED, and only then cleans up.",
       "assertions": [
         "Does not delete the branch, the worktree or the pr/87 ref while the state is OPEN",

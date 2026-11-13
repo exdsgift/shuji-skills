@@ -32,7 +32,7 @@ hand; mark a value nobody chose `(default)`.
 
 - One-file-per-entry registries (overlap allowed): `changelog.d/`, `migrations/versions/`
 - Hot files (overlap forbidden): `src/widgets/registry.py`, `tests/conftest.py`, `pyproject.toml`
-- Worktree root: `~/src/wt/`
+- Worktree root: `~/src/wt/widgets/`
 - Branch naming: `<type>/<short>`, with type one of feat, fix, docs, chore
 - Worktree cap: 6
 

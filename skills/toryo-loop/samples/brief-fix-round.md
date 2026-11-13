@@ -3,7 +3,7 @@
 Sent with SendMessage to the executor that built the pull request. This is the one fix round: fix these, then stop at
 the push.
 
-Ticket #41, worktree `~/src/wt/tier-pricing`, branch `feat/tier-pricing`, reviewed head `3f2a9c1`.
+Ticket #41, worktree `~/src/wt/widgets/tier-pricing`, branch `feat/tier-pricing`, reviewed head `3f2a9c1`.
 
 ## Bugs
 

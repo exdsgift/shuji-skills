@@ -28,6 +28,7 @@ _GIT = (r"(?<![\w.-])git(?:[ \t]+(?:(?:" + _VALUE + r")[ \t]+(?:\"[^\"]*\"|'[^']
 RAW_COMMIT = re.compile(_GIT + r"[\"']?commit[\"']?(?![\w-])")
 RAW_WORKTREE_ADD = re.compile(_GIT + r"[\"']?worktree[\"']?[ \t]+[\"']?add[\"']?(?![\w-])")
 GIT_ENV = re.compile(r"^(GIT_DIR|GIT_WORK_TREE)=")
+SETTERS = {"export", "declare", "typeset", "readonly", "local"}
 UNREADABLE = {"eval", "source", "."}  # they run text the hook does not read: any checkout is possible after them
 
 
@@ -100,17 +101,46 @@ def strip_heredocs(command):
     return "\n".join(out)
 
 
+def prepare(text):
+    """Drop comments and make each backtick span one unknown word, minding quotes as the shell does."""
+    out, i, quote = [], 0, None
+    while i < len(text):
+        ch = text[i]
+        if quote == "'":
+            quote = None if ch == "'" else quote
+        elif ch == "\\":
+            out.append(text[i:i + 2])
+            i += 2
+            continue
+        elif ch == '"':
+            quote = None if quote == '"' else '"'
+        elif ch == "'" and quote is None:
+            quote = "'"
+        elif ch == "`":
+            end = text.find("`", i + 1)
+            out.append("$TORYO_SUBST")
+            i = len(text) if end < 0 else end + 1
+            continue
+        elif ch == "#" and quote is None and (i == 0 or text[i - 1] in " \t\n;&|()"):
+            end = text.find("\n", i)
+            i = len(text) if end < 0 else end
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def lex(text):
     lexer = shlex.shlex(text, posix=True, punctuation_chars=PUNCTUATION)
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    lexer.commenters = ""  # shlex would end a word at any `#`, and swallow the newline after a comment
+    lexer.commenters = ""  # prepare() dropped the comments; shlex would also end a word at a `#` inside it
     return list(lexer)
 
 
 def tokens(command):
     """Words and separators, with shell quoting undone, after dropping heredoc bodies and line continuations."""
-    text = strip_heredocs(command).replace("\\\n", " ")
+    text = prepare(strip_heredocs(command).replace("\\\n", " "))
     try:
         return lex(text)
     except ValueError:  # an unbalanced quote: read the line that has it word by word, never skip a line
@@ -124,44 +154,32 @@ def tokens(command):
         return out
 
 
-def assignments(words):
-    """The variable settings a command line makes: its leading assignments, those after `env`, and what `export`,
-    `declare` or `typeset` sets."""
+def prefix(words):
+    """The variable settings a command makes, and the words that name it: leading assignments, keywords, wrappers
+    and the wrappers' options come off the front; what `export`, `declare`, `readonly` and the like set is kept."""
     found, rest = [], list(words)
     while rest:
         if re.match(r"^[A-Za-z_]\w*=", rest[0]):
             found.append(rest.pop(0))
-        elif rest[0] in KEYWORDS or rest[0] in WRAPPERS:
+        elif rest[0] in KEYWORDS:
+            rest.pop(0)
+        elif rest[0] in WRAPPERS:
             rest.pop(0)
             while rest and rest[0].startswith("-"):
                 rest.pop(0)
         else:
             break
-    if rest and rest[0] in ("export", "declare", "typeset"):
+    if rest and rest[0] in SETTERS:
         found += [w for w in rest[1:] if not w.startswith("-")]
-    return found
-
-
-def simple(words):
-    """The words that name the command: assignments, keywords, wrappers and the wrappers' options dropped."""
-    while words:
-        if re.match(r"^[A-Za-z_]\w*=", words[0]) or words[0] in KEYWORDS:
-            words = words[1:]
-        elif words[0] in WRAPPERS:
-            words = words[1:]
-            while words and words[0].startswith("-"):
-                words = words[1:]
-        else:
-            break
-    return words
+    return found, rest
 
 
 def resolve(path, base):
     """An absolute path, or None when the shell would expand something the hook cannot see."""
-    if path.startswith(("~-", "~+")):
+    if re.search(r"\$\{?(OLDPWD|PWD)\b", path):
         return None
     path = os.path.expandvars(os.path.expanduser(path))
-    if "$" in path or "`" in path:
+    if "$" in path or "`" in path or path.startswith("~"):  # ~-, ~+, ~N and an unknown ~user stay unexpanded
         return None
     if os.path.isabs(path):
         return os.path.normpath(path)
@@ -204,34 +222,47 @@ def read(command, cwd):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
     act on (None for one the hook cannot see)."""
     here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
-    seen, cases, pattern, git_env = set(here), 0, False, False
+    seen, cases, pattern, opened, git_env = set(here), 0, False, False, False
+    sub_case, sub_in, sub_pattern = 0, False, False
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
-        if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
+        if depth:  # inside an unquoted $(...): one opaque word; a case in it ends its patterns with ")"
             if not separator:
+                if token == "case":
+                    sub_case, sub_in = sub_case + 1, True
+                elif token == "in" and sub_in:
+                    sub_in, sub_pattern = False, True
+                elif token == "esac" and sub_case:
+                    sub_case, sub_pattern = sub_case - 1, False
                 continue
             rest = ""
             for ch in token:
-                if depth:
-                    depth += (ch == "(") - (ch == ")")
-                else:
+                if not depth:
                     rest += ch
+                elif sub_pattern and ch in "()":
+                    sub_pattern = ch == "("
+                else:
+                    depth += (ch == "(") - (ch == ")")
+            if sub_case and any(end in token for end in (";;", ";&")):
+                sub_pattern = True
             if not rest:
                 continue
             token = rest  # shlex glues ")" to the separator after it
         if separator and "(" in token and words and words[-1].endswith("$"):
             words[-1] += "(...)"
             depth = token.count("(") - token.count(")")
+            sub_case, sub_in, sub_pattern = 0, False, False
             continue
         if not separator:
             words.append(token)
             continue
-        git_env = git_env or any(GIT_ENV.match(w) for w in assignments(words))  # it moves every later git call
-        command_words = simple(words)
+        settings, command_words = prefix(words)
+        git_env = git_env or any(GIT_ENV.match(w) for w in settings)  # it moves every later git call
         if command_words:
             commands.append(command_words)
             cases += (command_words[0] == "case") - (command_words[0] == "esac")
             pattern = command_words[0] == "case" or (pattern and command_words[0] != "esac")
+            opened = opened and command_words[0] != "case"
             if command_words[0] in ("cd", "pushd"):
                 args = command_words[1:]
                 while args and args[0].startswith("-") and args[0] != "-":
@@ -251,10 +282,13 @@ def read(command, cwd):
                     calls.append((placed[0][0], frozenset(where)))
         words = []
         parens = token
-        if cases and pattern and ")" in token:  # the ")" that ends a case pattern opens no subshell
-            parens, pattern = token.replace(")", "", 1), False
+        if cases and pattern:  # a case pattern's "(" and ")" open and close no subshell
+            if "(" in parens and not opened:
+                parens, opened = parens.replace("(", "", 1), True
+            if ")" in parens:
+                parens, pattern = parens.replace(")", "", 1), False
         if cases and any(end in token for end in (";;", ";&")):
-            pattern = True
+            pattern, opened = True, False
         stack += [here] * parens.count("(")
         for _ in range(parens.count(")")):
             here = stack.pop() if stack else here
@@ -376,7 +410,7 @@ def self_test():
         (0, f"git -C {wt} commit -m \"$(cat <<'EOF'\nSupport the 27\" panel\nEOF\n)\"", repo, repo, ""),
         (2, 'echo "oops\ngit commit -m x', repo, repo, on_main),
         (2, f"git -C $(git -C {repo} rev-parse --show-toplevel) commit -m x", wt, repo, "cannot tell"),
-        (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, unplaced),
+        (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, "cannot tell"),
         (2, "git \\\ncommit -m x", repo, repo, on_main),
         (2, f"pushd {repo} && git commit -m x", wt, repo, on_main),
         (2, "git add $(git ls-files -m)\ngit commit -m x", repo, repo, on_main),
@@ -439,6 +473,23 @@ def self_test():
         (2, f"case x in\n  y) true ;;\n  x) git -C {repo} commit -m x ;;\nesac", wt, repo, on_main),
         (2, "cd ~-; git commit -m x", wt, repo, "cannot tell"),
         (2, "git -C ~- commit -m x", wt, repo, "cannot tell"),
+        (2, f"(\n  cd {repo}\n  case \"$1\" in\n    # 1) nothing to do\n    *) git fetch -q . ;;\n  esac\n"
+         "  git commit -m x\n)", wt, repo, on_main),
+        (2, f"(\n  cd {repo}\n  case x in\n    a) : ;;  # the a) arm\n  esac\n  git commit -m x\n)", wt, repo, on_main),
+        (2, f"case x in (a) : ;; esac\ncd {repo}\ncase y in\n  # y) the only arm\n  y) : ;;\nesac\ngit commit -m x",
+         wt, repo, on_main),
+        (2, f"( cd {repo}; echo hi # done)\ngit commit -m x )", wt, repo, on_main),
+        (0, "git commit -m x # done", wt, repo, ""),
+        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; esac); git commit -m x )", wt, repo, on_main),
+        (2, f"( cd {repo}; v=$(case a in a) echo 1 ;; b) echo 2 ;; esac); git commit -m x )", wt, repo, on_main),
+        (2, f"( cd {repo}; v=`case a in a) echo 1 ;; esac`; git commit -m x )", wt, repo, on_main),
+        (0, f"( cd {repo}; v=$(case a in (a) echo 1 ;; esac) ); git commit -m x", wt, repo, ""),
+        (2, f"readonly GIT_DIR={repo}/.git; export GIT_DIR; git commit -m x", wt, repo, "cannot tell"),
+        (2, f"local GIT_DIR={repo}/.git; git commit -m x", wt, repo, "cannot tell"),
+        (0, f"( cd {repo} && case x in (x) git status >/dev/null ;; esac ) ; git commit -m x", wt, repo, ""),
+        (2, f"pushd {repo}; pushd {wt}; git -C ~1 commit -m x", wt, repo, "cannot tell"),
+        (2, f'cd {repo}; git -C "$PWD" commit -m x', wt, repo, "cannot tell"),
+        (2, f"cd {repo}; git -C ${{OLDPWD}} commit -m x", wt, repo, "cannot tell"),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),

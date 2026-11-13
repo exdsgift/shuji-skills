@@ -32,7 +32,7 @@ hand; mark a value nobody chose `(default)`.
 
 - One-file-per-entry registries (overlap allowed): `<changelog.d/>`
 - Hot files (overlap forbidden): `<path>`, `<path>`
-- Worktree root: `<~/src/wt/>` (an absolute path, so `git -C <worktree>` needs no base)
+- Worktree root: `<~/src/wt/<repo>/>` (absolute, so `git -C <worktree>` needs no base; one per repository)
 - Branch naming: `<type>/<short>`
 - Worktree cap: 6
 
