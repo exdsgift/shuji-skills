@@ -172,26 +172,17 @@ def git_call(words, where):
     return None
 
 
-def moved(here, target, how):
-    """The checkouts the shell may be in after `cd target`, and whether that holds only to the end of an && chain.
-
-    `how` is how the cd runs: "seq" (always), "and" (inside an && chain: what follows in the chain runs only if the cd
-    did) or "maybe" (after || or a pipe, or under a keyword). A cd that may fail or may not run adds to the checkouts.
-    """
-    targets = frozenset(resolve(target, base) for base in here)
-    sure = all(t and os.path.isdir(t) for t in targets)
-    if sure and how == "seq":
-        return targets, False
-    if sure and how == "and":
-        return targets, True
-    return here | targets, False
+def moved(here, target):
+    """The checkouts the shell may be in after `cd target`: the target is added, nothing is taken away, because a cd
+    may fail, run in the background, in a pipe or a subshell, or sit under an `if` the hook cannot evaluate."""
+    return here | frozenset(resolve(target, base) for base in here)
 
 
 def read(command, cwd):
     """The simple commands the shell would run, and each commit and worktree-add call with every checkout it may
     act on (None for one the hook cannot see)."""
     here, stack, words, depth, commands, calls = frozenset([cwd]), [], [], 0, [], []
-    seen, before, chain_start, chain_only = set(here), ";", frozenset([cwd]), False
+    seen = set(here)
     for token in tokens(command) + [";"]:
         separator = bool(token) and set(token) <= set(PUNCTUATION)
         if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
@@ -213,16 +204,13 @@ def read(command, cwd):
         if not separator:
             words.append(token)
             continue
-        how = "and" if "&&" in before else "maybe" if "|" in before else "seq"
-        how = "maybe" if words and words[0] in KEYWORDS else how
         command_words = simple(words)
         if command_words:
             commands.append(command_words)
             if command_words[0] in ("cd", "pushd"):
                 args = [w for w in command_words[1:] if not w.startswith("-")]
-                target = "$OLDPWD" if command_words[1:] == ["-"] else (args[0] if args else "~")
-                here, only = moved(here, target, how)
-                chain_only = chain_only or only
+                target = "$TORYO_UNKNOWN" if command_words[1:] == ["-"] else (args[0] if args else "~")
+                here = moved(here, target)
                 seen |= here
             elif command_words[0] == "popd":
                 here = frozenset(seen)  # the stack is not followed: any checkout seen so far
@@ -230,10 +218,7 @@ def read(command, cwd):
                 placed = [git_call(command_words, base) for base in here]
                 if placed[0]:
                     calls.append((placed[0][0], frozenset(where for _, where in placed)))
-        if "&&" not in token:  # the && chain ends: a cd it held to may not have run
-            here = here | chain_start if chain_only else here
-            chain_start, chain_only = here, False
-        words, before = [], token
+        words = []
         stack += [here] * token.count("(")
         for _ in range(token.count(")")):
             here = stack.pop() if stack else here
@@ -327,6 +312,7 @@ def self_test():
         (2, f"cd {repo}; git commit -m x", wt, repo, on_main),
         (2, f"cd {repo}\ngit commit -m x", wt, repo, on_main),
         (0, f"(cd {repo} && git status) && git commit -m x", wt, repo, ""),
+        (0, f"cd {wt}/docs; git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} status && git commit -m x", repo, repo, on_main),
         (0, f"git -C {repo} fetch origin && git -C {wt} commit -m x", wt, repo, ""),
         (2, "git -c user.name=a commit -m x", repo, repo, on_main),
@@ -383,10 +369,19 @@ def self_test():
         (2, f"false && cd {wt}; git commit -m x", repo, repo, on_main),
         (2, f"if [ -d {wt} ]; then cd {wt}; fi; git commit -m x", repo, repo, on_main),
         (2, f"pushd {wt} && git status && popd && git commit -m x", repo, repo, on_main),
-        (0, f"cd {wt} && git commit -m x", repo, repo, ""),
-        (0, f"git -C {wt} fetch origin && cd {wt} && git commit -m x", repo, repo, ""),
+        (2, f"cd {wt} && git commit -m x", repo, repo, on_main),
+        (0, f"git -C {wt} fetch origin && git -C {wt} commit -m x", repo, repo, ""),
         (2, f"git -C {wt} fetch origin && cd {wt} && git commit -m x; git commit -m y", repo, repo, on_main),
-        (0, f"cd {wt}\ngit add -A\ngit commit -m x", repo, repo, ""),
+        (2, f"cd {wt}\ngit add -A\ngit commit -m x", repo, repo, on_main),
+        (2, f"if false; then echo hi; cd {wt}; fi; git commit -m x", repo, repo, on_main),
+        (2, f'if [ -n "$CI" ]; then\ncd {wt}\nfi\ngit commit -m x', repo, repo, on_main),
+        (2, f"for d in; do\ncd {wt}\ndone\ngit commit -m x", repo, repo, on_main),
+        (2, f"(cd {wt} && false) && cd {wt} && git add -A; git commit -m x", repo, repo, on_main),
+        (2, f"cd {wt} & git commit -m x", repo, repo, on_main),
+        (2, f"cd {wt} | cat; git commit -m x", repo, repo, on_main),
+        (2, f"cd {wt}/typo/..; git commit -m x", repo, repo, on_main),
+        (2, f"git status # clean; cd {wt} next\ngit commit -m x", repo, repo, on_main),
+        (2, f"cd {wt}; cd -; git commit -m x", repo, repo, ""),
         (2, f"git -C {wt} --attr-source HEAD commit -m a; sudo -u bob git commit -m b", repo, repo, unplaced),
         (2, f"git --git-dir={repo}/.git commit -m x", wt, repo, "cannot tell"),
         (2, "rm -rf data", plain, plain, "data is precious"),
