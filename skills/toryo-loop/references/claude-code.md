@@ -61,15 +61,16 @@ file when notified. Agents run their checks in the foreground. Never read an exi
 }
 ```
 
-It splits the command the way the shell does (quotes, `&&`, `;`, newlines, line continuations, subshells, keywords
-such as `if` and `do`, `cd` and `pushd`, `git -C`, `~` and the variables it can see) to find the checkout each
-commit acts on, and refuses, with its reason:
+It reads the command's words the way the shell does (quotes, `&&`, `;`, newlines, line continuations, heredocs,
+keywords such as `if` and `do`, `git -C`) to find each commit and the checkout it names, and refuses, with its
+reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
-  worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C` given by a variable, a
-  `$(...)` or backticks it cannot expand) is refused too: write the path out. A `cd` never takes the guard off a
-  checkout: after one, a commit is checked in every checkout the command has named, so commit with
-  `git -C <worktree> commit`;
+  worktree with `git -C <worktree> commit` and the worktree's absolute path. A commit whose checkout it cannot tell is
+  refused too. It does not follow `cd`: when the command has a `cd`, `pushd`, `popd`, `eval`, `source` or `.`
+  anywhere, in a subshell, a comment or a heredoc too, a commit without an absolute `-C` is one it cannot tell. It
+  expands `~` and `$HOME` only, so a path with another variable, `~-`, `~+`, `~N`, a `$(...)`, backticks or a glob
+  is unknown as well. Write the path out: `git -C <worktree> commit`;
 - a command whose raw text names more `git commit` calls than it can place: one inside quotes, a heredoc body, a
   `$(...)` or backticks, or in a shape it cannot read. It fails closed: a false refusal costs a retry, a false pass a
   commit on the default branch;
@@ -80,9 +81,8 @@ commit acts on, and refuses, with its reason:
 
 It reads the setup file of the session's project (`$CLAUDE_PROJECT_DIR`). A guard line it cannot use, or input it
 cannot read, gives exit 1: the command runs and the operator sees the message. It catches slips, not an agent set on
-getting round it: after `eval`, `source` or a `GIT_DIR`/`GIT_WORK_TREE` setting, any checkout counts as unknown, and
-what a sourced script, `CDPATH`, an alias or a shell function does is beyond it. Text that names a refused command,
-in a commit message, a pull request body or a file written through a heredoc, goes to a file first (the editor tool),
-then through `--body-file` or `-F`.
+getting round it: after a `GIT_DIR` or `GIT_WORK_TREE` setting every checkout is unknown, and what an alias or a
+shell function does is beyond it. Text that names a refused command, in a commit message, a pull request body or a
+file written through a heredoc, goes to a file first (the editor tool), then through `--body-file` or `-F`.
 `python3 .claude/hooks/toryo-guard.py --self-test` checks it in a throwaway repository and ends with
 `self-test: clean`.

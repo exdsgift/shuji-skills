@@ -34,10 +34,11 @@ them, stop and say so before editing it.
 ## Steps
 
 1. Worktree, from a fresh fetch:
-   `git fetch origin && git worktree add ../wt/tier-pricing -b feat/tier-pricing origin/main`.
+   `git fetch origin && git worktree add ~/src/wt/widgets/tier-pricing -b feat/tier-pricing origin/main`.
 2. Tests first, in `tests/test_pricing.py`: `price_for(qty=49)` is the unit price, `price_for(qty=50)` the first tier,
    `price_for(qty=100)` 8.50, and the property test from B1. Each fails on origin/main. Commit and push.
-3. The change in `src/widgets/pricing.py`. Commit and push after each step, with `git -C ../wt/tier-pricing commit`.
+3. The change in `src/widgets/pricing.py`. Commit and push after each step, with
+   `git -C ~/src/wt/widgets/tier-pricing commit`.
 4. Local checks, in the foreground: `uv run ruff check`, `uv run pyright`, `uv run pytest -q`. Each exits 0 on the head.
 5. Docs and changelog: `docs/pricing.md`, and `changelog.d/41.md` (a minor bump: a price changes meaning).
 6. Draft pull request: `gh pr create --draft --base main --title "feat(pricing): tier prices for bulk orders"
