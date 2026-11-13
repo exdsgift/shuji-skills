@@ -17,7 +17,9 @@ import tempfile
 
 SETUP = os.path.join("docs", "agents", "toryo-loop.md")
 PUNCTUATION = ";&|()\n"
-WRAPPERS = {"command", "env", "exec", "nohup", "time"}
+KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "{"}
+WRAPPERS = {"builtin", "command", "env", "exec", "nice", "nohup", "sudo", "time"}
+HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][\w.-]*)\2")
 GIT_VALUE_OPTIONS = {"-c", "--git-dir", "--namespace", "--config-env", "--super-prefix", "--attr-source"}
 
 
@@ -64,23 +66,72 @@ def setup_values(project):
     return default, cap, guards, problems
 
 
+def strip_heredocs(command):
+    """Drop heredoc bodies, which are data, not commands; the line that opens one stays."""
+    out, waiting = [], []
+    for line in command.split("\n"):
+        if waiting:
+            delimiter, tabs = waiting[0]
+            if (line.lstrip("\t") if tabs else line) == delimiter:
+                waiting.pop(0)
+            continue
+        out.append(line)
+        waiting = [(m.group(3), m.group(1) == "-") for m in HEREDOC.finditer(line)]
+    return "\n".join(out)
+
+
+def lex(text):
+    lexer = shlex.shlex(text, posix=True, punctuation_chars=PUNCTUATION)
+    lexer.whitespace = " \t\r"
+    lexer.whitespace_split = True
+    lexer.commenters = ""  # shlex would end a word at any `#`, and swallow the newline after a comment
+    return list(lexer)
+
+
+def merge_backticks(words):
+    """A `...` span is one opaque word, like the value the shell would put there."""
+    out, span = [], None
+    for word in words:
+        if span is not None:
+            span += " " + word
+            if word.endswith("`"):
+                out.append(span)
+                span = None
+        elif word.startswith("`") and not (len(word) > 1 and word.endswith("`")):
+            span = word
+        else:
+            out.append(word)
+    return out + ([span] if span is not None else [])
+
+
 def tokens(command):
-    """Words and separators, with shell quoting undone; a line shlex cannot read (a heredoc body) is skipped."""
-    def lex(text):
-        lexer = shlex.shlex(text, posix=True, punctuation_chars=PUNCTUATION)
-        lexer.whitespace = " \t\r"
-        lexer.whitespace_split = True
-        return list(lexer)
+    """Words and separators, with shell quoting undone, after dropping heredoc bodies and line continuations."""
+    text = strip_heredocs(command).replace("\\\n", " ")
     try:
-        return lex(command)
-    except ValueError:
+        return merge_backticks(lex(text))
+    except ValueError:  # an unbalanced quote: read the line that has it word by word, never skip a line
         out = []
-        for line in command.splitlines():
+        for line in text.split("\n"):
             try:
-                out += lex(line) + ["\n"]
+                out += lex(line)
             except ValueError:
-                continue
-        return out
+                out += [w.strip("'\"") for w in re.findall(r"[;&|()]+|[^\s;&|()]+", line)]
+            out.append("\n")
+        return merge_backticks(out)
+
+
+def simple(words):
+    """The words that name the command: assignments, keywords, wrappers and the wrappers' options dropped."""
+    while words:
+        if re.match(r"^[A-Za-z_]\w*=", words[0]) or words[0] in KEYWORDS:
+            words = words[1:]
+        elif words[0] in WRAPPERS:
+            words = words[1:]
+            while words and words[0].startswith("-"):
+                words = words[1:]
+        else:
+            break
+    return words
 
 
 def resolve(path, base):
@@ -132,19 +183,27 @@ def check_git(words, where, default, cap):
 def check(command, cwd, project):
     """Raise Refuse for the first refused simple command; return the setup file's problems otherwise."""
     default, cap, guards, problems = setup_values(project)
-    here, stack, words = cwd, [], []
+    here, stack, words, depth = cwd, [], [], 0
     for token in tokens(command) + [";"]:
-        if not token or not set(token) <= set(PUNCTUATION):
+        separator = bool(token) and set(token) <= set(PUNCTUATION)
+        if depth:  # inside an unquoted $(...): it stays one opaque word of the command around it
+            depth = max(0, depth + token.count("(") - token.count(")")) if separator else depth
+            continue
+        if separator and "(" in token and words and words[-1].endswith("$"):
+            words[-1] += "(...)"
+            depth = token.count("(") - token.count(")")
+            continue
+        if not separator:
             words.append(token)
             continue
-        while words and (re.match(r"^[A-Za-z_]\w*=", words[0]) or words[0] in WRAPPERS):
-            words.pop(0)
+        words = simple(words)
         if words:
             for pattern, reason in guards:
                 if pattern.search(" ".join(words)):
                     raise Refuse(f"{reason} (pattern: {pattern.pattern}).")
-            if words[0] == "cd":
-                here = resolve(words[1] if len(words) > 1 else "~", here)
+            if words[0] in ("cd", "pushd"):
+                args = [w for w in words[1:] if not w.startswith("-")]
+                here = None if words[1:] == ["-"] else resolve(args[0] if args else "~", here)
             elif os.path.basename(words[0]) == "git":
                 check_git(words, here, default, cap)
         words = []
@@ -221,6 +280,22 @@ def self_test():
         (2, "git push -f origin main", repo, repo, ""),
         (2, "git push origin +main", repo, repo, ""),
         (0, "git push origin feat/x && git checkout -f main", repo, repo, ""),
+        (2, "git status # note\ngit commit -m x", repo, repo, ""),
+        (2, "git add -A && echo issue#12 && git commit -m x", repo, repo, ""),
+        (2, f"cd {repo}  # the session checkout\ngit commit -m x", wt, repo, ""),
+        (2, "if ! git diff --cached --quiet; then git commit -m x; fi", repo, repo, ""),
+        (2, "for f in a b; do git commit -m $f; done", repo, repo, ""),
+        (2, "! git commit -m x", repo, repo, ""),
+        (2, "sudo git commit -m x", repo, repo, ""),
+        (2, "git commit -m \"$(cat <<'EOF'\nSupport the 27\" panel\nEOF\n)\"", repo, repo, ""),
+        (2, 'echo "oops\ngit commit -m x', repo, repo, ""),
+        (2, f"git -C $(git -C {repo} rev-parse --show-toplevel) commit -m x", wt, repo, "cannot tell"),
+        (2, f"git -C `git -C {repo} rev-parse --show-toplevel` commit -m x", wt, repo, "cannot tell"),
+        (2, "git \\\ncommit -m x", repo, repo, ""),
+        (2, f"pushd {repo} && git commit -m x", wt, repo, ""),
+        (0, "cat > notes.md <<'EOF'\nRun this in the worktree:\ngit commit -m x\nrm -rf data\nEOF\ngit status",
+         repo, repo, ""),
+        (2, "cat > notes.md <<-EOF\n\tnotes\n\tEOF\ngit commit -m x", repo, repo, ""),
         (2, "rm -rf data", plain, plain, "data is precious"),
         (1, "ls", plain, plain, "guard line 2 is not a valid regular expression"),
         (1, None, repo, repo, "could not read the hook input"),

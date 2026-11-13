@@ -134,8 +134,8 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
     moved, run the same command again; the master never rebases or force-pushes a head
     ([references/landing.md](references/landing.md)). Done when `gh pr view <N> --json state -q .state` prints
     `MERGED`.
-17. **Clean up**, only after `MERGED` and a `git fetch origin --prune`: the remote head branch, the local branch, the
-    worktree and the `pr/<N>` ref. Done when none of the four remains.
+17. **Clean up**, only after `MERGED`, a `git fetch origin --prune` and a fast-forward of the session checkout: the
+    remote head branch, the local branch, the worktree and the `pr/<N>` ref. Done when none of the four remains.
 18. **Update the trackers:** comment on each issue the pull request served (what landed, what is left) and close it
     when nothing is left; remove its queue row; update the mirror; send nits to the nits issue and each "for now X,
     later Y" to the deferred issue. Done when all of that shows on GitHub and in the mirror
@@ -167,7 +167,8 @@ Each step ends on its done-when. A–C marks the tracks a step applies to; unmar
 
 ## Safety
 
-These hold everywhere: the agent files carry them, and each build brief adds the setup file's own under House rules.
+These hold everywhere: the executor agent files carry them, and each build brief adds the setup file's own under
+House rules.
 
 - Never type a credential, and never read the real secrets file: the operator fills it; tests use made-up tokens.
 - Nothing durable lives only on the compute: push early, and put plans' decisions on the issue.

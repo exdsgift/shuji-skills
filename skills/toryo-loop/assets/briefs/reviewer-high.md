@@ -49,8 +49,9 @@ what you ran and what you did not verify. No preamble.
 
 Replace "Setup" and "The spec" with:
 
-> Read-only. Review the plan at `<path>` against origin/<default> at `<sha>`. Check every claim it makes about the code
-> with `file:line`. Look for plan bugs: a wrong assumption, a missing edge case, a test that cannot fail, slices whose
-> order makes them collide. Give your view on each decision D1..Dn: agree, or the option you would pick and why.
+> Read-only. Run `git fetch origin <default>`, then review the plan at `<path>` against origin/<default> at `<sha>`.
+> Check every claim it makes about the code with `file:line`. Look for plan bugs: a wrong assumption, a missing edge
+> case, a test that cannot fail, slices whose order makes them collide. Give your view on each decision D1..Dn: agree,
+> or the option you would pick and why.
 
 and the report's findings become plan bugs (with the `file:line` that proves each) and notes.

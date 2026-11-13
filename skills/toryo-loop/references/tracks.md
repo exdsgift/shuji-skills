@@ -23,8 +23,9 @@ Write the reason beside the track in the queue row ("A: core path", "B: clear, ~
 
 ## Sizing
 
-Count lines added and removed besides tests: `git diff --stat origin/<default>...` for a branch, or the plan's
-estimate for a ticket not built yet. Generated files and lock files do not count; say so when you leave them out.
+Count lines added and removed besides tests: `git diff --stat origin/<default>...` after a `git fetch origin`, for a
+branch, or the plan's estimate for a ticket not built yet. Generated files and lock files do not count; say so when
+you leave them out.
 
 ## Moving a ticket to A
 

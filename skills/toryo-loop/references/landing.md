@@ -45,14 +45,14 @@ Clean up only after `MERGED`. A land command that prints success while the state
 
 ## The clean-up
 
-Only after `MERGED`, run `git fetch origin --prune` (every later check reads `origin/<default>`), then remove the
-four things, and check that none remains:
+Only after `MERGED`, run `git fetch origin --prune` and fast-forward the session checkout's default branch
+(`git merge --ff-only origin/<default>`), so every later check, the master and the guard hook read what landed. Then
+remove the four things, and check that none remains:
 
 1. the remote head branch: `git push origin --delete <branch>` (skip when GitHub already deleted it);
 2. the worktree: `git worktree remove <path>`, never with `--force` over uncommitted work;
-3. the local branch: `git branch -d <branch>` after a merge land. Use `-D` only when the branch holds nothing the
-   pull request did not land: its head is the landed head (`git rev-parse <branch>` equals
-   `gh pr view <N> --json headRefOid -q .headRefOid`), which is the check after a squash or rebase land, or
+3. the local branch: `git branch -D <branch>`, only when it holds nothing the pull request did not land: its head is
+   the landed head (`git rev-parse <branch>` equals `gh pr view <N> --json headRefOid -q .headRefOid`), or
    `git cherry origin/<default> <branch>` shows no `+` line. A branch carrying a patch that did not land is reported,
    never deleted;
 4. the fetched ref: `git update-ref -d refs/pull/<N>/head` or `git branch -D pr/<N>`, whichever the fetch made.

@@ -61,12 +61,13 @@ file when notified. Agents run their checks in the foreground. Never read an exi
 }
 ```
 
-It splits the command the way the shell does (quotes, `&&`, `;`, newlines, subshells, `cd`, `git -C`, `~` and
-variables it can see) and refuses, with its reason:
+It splits the command the way the shell does (quotes, `&&`, `;`, newlines, line continuations, subshells, keywords
+such as `if` and `do`, `cd` and `pushd`, `git -C`, `~` and the variables it can see), reads a heredoc body as data,
+not as commands, and refuses, with its reason:
 
 - a `git commit` whose checkout is on the default branch: the session checkout stays on it, and commits go to a
-  worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C "$VAR"` it cannot expand)
-  is refused too: write the path out;
+  worktree with `git -C <worktree> commit`. A commit whose checkout it cannot tell (a `-C` given by a variable, a
+  `$(...)` or backticks it cannot expand) is refused too: write the path out;
 - a `git worktree add` past the setup file's `Worktree cap:`;
 - a simple command matching a line of the setup file's ` ```guard ` block, written `<Python regex> :: <reason>`. Each
   pattern is matched against one command at a time, between `&&`, `;` and `|`.

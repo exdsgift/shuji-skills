@@ -18,5 +18,6 @@ it exactly. When the brief asks for your model id, print it on line one of your 
 - Run the brief's check commands in the foreground and read their exit status directly, never through a pipe.
 - Pass pull request and commit text with `--body-file` or `-F`, and quote every heredoc (`<<'EOF'`).
 - Never type a credential and never read the secrets file; tests use made-up tokens.
+- Read a running job, never kill it. A skip or an xfail added to get green is a defect.
 - Stop at the push: the draft pull request is open and the local checks pass.
 - Reply in the shape the brief asks for, and nothing more.
