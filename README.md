@@ -8,6 +8,7 @@
 | --- | --- |
 | 🍱 [bento-diagrams](skills/bento-diagrams) · 弁当 | Draws engineering diagrams in Apple's system look: swimlanes and regions on a white or black page, cards with coloured icon tiles, yellow decisions, green outcomes, light and dark in one file, checked for overlaps. Named after the bentō, the lunch box with a compartment for each thing. |
 | 🖌️ [sumi-diagrams](skills/sumi-diagrams) · 墨 | Writes diagrams and charts as Mermaid text rendered by Pele: all 32 types, chosen by the question asked, in grey with one accent on the arrowheads and the Okabe-Ito colours for chart series. Delivers one SVG for both themes, a light and dark pair for a README, or a checked block for an Obsidian note or a pull request, where it marks what the change adds. Named after sumi, the ink of brush painting: grey ink and one vermilion seal. |
+| 🪚 [toryo-loop](skills/toryo-loop) · 棟梁 | Runs a coding-agent delivery loop as the master session: a queue in a GitHub issue, executor subagents that build each ticket in a worktree up to a draft pull request, a fresh reviewer on another model, one fix round on proved bugs, and a land that checks it merged, in one of three autonomy modes. Named after the toryo, the master carpenter who plans the house and inspects each part before it goes up. |
 ## Install
 
 Any agent ([Claude Code, Codex, Cursor, Gemini CLI, Copilot and more](https://github.com/vercel-labs/skills)),
@@ -16,6 +17,7 @@ with Node.js:
 ```bash
 npx skills add exdsgift/shuji-skills --skill bento-diagrams
 npx skills add exdsgift/shuji-skills --skill sumi-diagrams
+npx skills add exdsgift/shuji-skills --skill toryo-loop
 ```
 
 Add `-g` to install for every project and `-a claude-code` (or `-a codex`, and so on) to pick the agent without a
@@ -27,7 +29,8 @@ Claude Code, every skill as one plugin from this repository's marketplace:
 claude plugin install shuji --marketplace exdsgift/shuji-skills
 ```
 
-The skills run as `/shuji:bento-diagrams` and `/shuji:sumi-diagrams`, or on their own when a request fits. To receive
+The skills run as `/shuji:bento-diagrams`, `/shuji:sumi-diagrams` and `/shuji:toryo-loop`, or on their own when a
+request fits. To receive
 new versions without asking, open `/plugin`, select `shuji` under Marketplaces and select Enable auto-update; otherwise
 `claude plugin update shuji@shuji` pulls them. If you installed `bento-diagrams@shuji` or `sumi-diagrams@shuji`
 before, run the install command above once: it replaces them.
