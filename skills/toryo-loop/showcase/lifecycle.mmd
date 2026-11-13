@@ -1,0 +1,20 @@
+flowchart TD
+  accTitle: The life of a ticket in toryo-loop
+  accDescr: The master takes the first queue row with no blocker and classifies it. Track A gets a plan and a plan review first, and a decision only the operator can take parks the ticket in the decision batch. The executor builds and stops at the push; a reviewer on another model reviews while CI runs. A proved bug or a red check gets one fix round and a low re-check. The master lands, checks the merge and updates the trackers.
+  pick(["Master: first queue row with no blocker"]) --> track{"Track?"}
+  track -->|"A: core, meaning, open choice, large"| plan["Executor: plan with decisions and tests"]
+  plan --> preview["Reviewer: plan review at medium"]
+  preview --> opdec{"Decision only the operator takes?"}
+  opdec -->|yes| parked(["Parked in the decision batch"]):::ext
+  opdec -->|no| build
+  track -->|"B: clear fix, small"| build["Executor: tests first, code, local checks, draft PR, stops at the push"]
+  track -->|"C: mechanical"| light["Executor-light: change and draft PR"]
+  build --> high["Reviewer on another model: high review, CI beside it"]
+  light --> lowc["Reviewer: one low review"]
+  high --> bug{"Bug with a proof, or a red check?"}
+  lowc --> bug
+  bug -->|no| land["Master: land, check it merged, clean up"]:::key
+  land --> trackers(["Trackers updated, next ticket per the mode"])
+  bug -->|yes| fix["Executor: one fix round, nits filed"]
+  fix --> recheck["Reviewer: low re-check of the interdiff"]
+  recheck --> bug

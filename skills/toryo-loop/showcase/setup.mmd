@@ -1,0 +1,14 @@
+flowchart TD
+  accTitle: First run of toryo-loop in a repository
+  accDescr: With no setup file in the repository, the skill starts no ticket. It asks the knobs once, creates the tracker issues that are missing, writes the setup file, copies the three agent files with the chosen models, installs the guard hook if wanted, checks that gh reads the tracker issues, lands the setup through a pull request, and asks for a new session so the agent files load.
+  start(["No setup file in the repository"]) --> ask["Ask the knobs once: queue, deferred and nits issues, land command, checks, models, mirror"]
+  ask --> issues["Create the missing queue, deferred and nits issues"]
+  issues --> write["Write docs/agents/toryo-loop.md from the template"]
+  write --> agents["Copy executor, executor-light and reviewer with the chosen models"]
+  agents --> hook{"Guard hook wanted?"}
+  hook -->|yes| guard["Install it: no commit on main, worktree cap"]
+  hook -->|no| verify
+  guard --> verify["Check: gh reads the three tracker issues"]
+  verify --> pr["Land the setup through a pull request"]
+  pr --> restart["New session: agent files load at start"]
+  restart --> ready(["Ready: the master reads the setup file at every start"]):::key

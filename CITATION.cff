@@ -6,7 +6,8 @@ abstract: >-
   Portable skills for coding agents in the Agent Skills format: bento-diagrams draws engineering diagrams in Apple's
   system look as one draw.io file for both themes, checked for overlaps; sumi-diagrams writes Mermaid diagrams and
   charts rendered by Pele as one themeable SVG, checked for syntax, overlaps and size, and diagrams of a change for
-  pull requests.
+  pull requests; toryo-loop runs a coding-agent delivery loop as a master session, from a queue of GitHub issues
+  through executor subagents in worktrees and a fresh reviewer on another model to pull requests landed and checked.
 authors:
   - given-names: Gabriele
     family-names: Durante
@@ -23,3 +24,6 @@ keywords:
   - Mermaid
   - Pele
   - pull requests
+  - subagents
+  - code review
+  - GitHub Issues

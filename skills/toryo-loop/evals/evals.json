@@ -1,0 +1,136 @@
+{
+  "skill_name": "toryo-loop",
+  "notes": "Every case is a decision on the made-up repository acme/widgets, described in the prompt. The agent answers in writing: it makes no GitHub or git call and launches no agent. Run each case with a fresh agent, once without the skill (the baseline) and once told to read skills/toryo-loop/SKILL.md first, and write its answer to eval-results/toryo-loop/round-<n>/<id>/answer.md.",
+  "preamble": "You are the master session of a coding-agent delivery loop on the made-up GitHub repository acme/widgets: you pick tickets from a queue, brief executor subagents that build them in worktrees and open draft PRs, have reviewer subagents review the PRs, land them and keep the trackers. Nothing here is real: make no GitHub or git call and launch no agent. Answer in at most 300 words: what you do next, in order, with the exact commands or agent launches you would run, and why.",
+  "evals": [
+    {
+      "id": "pick-next-disjoint",
+      "prompt": "Mode: autonomous. Ticket #41 is N: its draft PR #87 is open and in high review. `gh pr diff 87 --name-only` prints:\nsrc/widgets/pricing.py\ntests/test_pricing.py\nchangelog.d/41.md\n\nThe setup file says: hot files are src/widgets/registry.py and tests/conftest.py; changelog.d/ is a one-file-per-entry registry.\n\nThe queue in map issue #10, in order:\n| # | Ticket | Track | Files it will touch |\n| 1 | #42 tiered discounts | A | src/widgets/discounts.py, tests/test_discounts.py. Blocked by: #41 |\n| 2 | #43 round prices to cents | A | src/widgets/pricing.py, tests/test_pricing.py |\n| 3 | #44 CSV export of orders | B | src/widgets/export.py, tests/test_export.py, changelog.d/44.md |\n| 4 | #45 typo in the README | C | README.md |\n\nWhich ticket do you start now as N+1, and what do you do to start it?",
+      "expected_output": "Starts #44: #42 is blocked by #41, #43 overlaps PR #87 on pricing.py and its test, and #44 overlaps only on changelog.d/, a one-file-per-entry registry where overlap is allowed. Moves #44 to In Progress, writes its brief to a file and launches the executor on it.",
+      "assertions": [
+        "Picks #44 as N+1",
+        "Rejects #42 because it is blocked by #41",
+        "Rejects #43 because it shares src/widgets/pricing.py (and its test) with PR #87",
+        "Treats the shared changelog.d/ folder as allowed overlap, not as a reason to skip #44",
+        "Does not start more than this one ticket (two in flight: #41 and #44)",
+        "Briefs the executor through a brief file it writes, not only an inline prompt"
+      ]
+    },
+    {
+      "id": "classify-tracks",
+      "prompt": "The setup file says: core paths are src/widgets/core/; track B is a clear fix of at most about 100 lines besides tests; the PR cap is about 400 lines besides tests.\n\nClassify these five tickets into a track (A full: plan, plan review, build, high review, fix round, low re-check; B light: build, one high review; C mechanical: a light executor and one low review), one line each with the reason:\n1. #61 fix an off-by-one in src/widgets/export.py pagination; about 20 lines, the fix is clear.\n2. #62 retry failed webhook deliveries; nobody has decided between a fixed interval and exponential backoff.\n3. #63 split the CSV writer in src/widgets/export.py into header and row writers; about 120 lines besides tests, no open choice.\n4. #64 rename docs/setup.md to docs/install.md and fix the links to it.\n5. #65 change how src/widgets/core/score.py rounds a widget's score (half-up instead of banker's rounding); about 10 lines.",
+      "expected_output": "#61 B, #62 A (open design choice), #63 A (past about 100 lines), #64 C (mechanical), #65 A (core path, and it changes what a number means).",
+      "assertions": [
+        "#61 is B",
+        "#62 is A, because of the open design choice",
+        "#63 is A, because it runs past about 100 lines besides tests",
+        "#64 is C",
+        "#65 is A, because it touches a core path and changes what a number means, despite its small size"
+      ]
+    },
+    {
+      "id": "sort-findings",
+      "prompt": "The reviewer's high review of PR #87 (ticket #41, touching src/widgets/pricing.py and tests/test_pricing.py) reports:\nF1. src/widgets/pricing.py:88 drops the last tier: price_for(qty=100) returns 9.00, expected 8.50 from the tier table at pricing.py:12.\nF2. src/widgets/pricing.py:40 may have a race condition under concurrent requests.\nF3. src/widgets/pricing.py:91 the variable name `tmp2` says nothing; `tier_floor` would.\nF4. CI: the check `unit` is red on the head: tests/test_pricing.py::test_bulk_order fails with AssertionError 9.0 != 8.5.\nF5. src/widgets/legacy.py:10 uses a deprecated `dict.has_key` style helper.\n\nSort the findings, and say what you send to the executor and what happens to each of the others.",
+      "expected_output": "F1 and F4 are bug-level (a concrete input with its wrong output, a failing check) and go back in one fix round with file:line and the probe to turn into a test. F2 has no proof: a nit, not a bug, filed to the nits issue. F3 is a cheap nit in a file the round touches: fixed in the same round. F5 is a nit in an untouched file: filed to the nits issue.",
+      "assertions": [
+        "F1 is bug-level, because it gives a concrete input and its wrong output",
+        "F4 (the red check) goes into the same fix round as F1",
+        "F2 is treated as a nit (no proof), not sent back as a bug",
+        "F3 is fixed in the fix round, as a cheap nit in a touched file",
+        "F5 goes to the nits issue, not into the fix round",
+        "There is exactly one fix round, followed by a low re-check of the interdiff",
+        "The executor is asked to turn F1's probe into a test that fails before the fix"
+      ]
+    },
+    {
+      "id": "false-land",
+      "prompt": "PR #87 (head branch fix/tier-pricing, worktree ../wt/tier-pricing) has clean reviews and green CI. You ran the setup file's land command as:\n\ngh pr merge 87 --merge --match-head-commit 3f2a9c1 2>&1 | tail -n 1; echo LANDED\n\nIt printed:\nX Pull request acme/widgets#87 is not mergeable: the base branch was modified\nLANDED\n\nThen `gh pr view 87 --json state -q .state` printed OPEN. Your clean-up step deletes the remote branch, the local branch, the worktree and the pr/87 ref. What do you do now?",
+      "expected_output": "Does not clean up: the PR is not MERGED, and LANDED came from the echo after a pipe, not from the merge. Main moved, so it runs the same land command again without a pipe and with the check chained by &&, confirms MERGED, and only then cleans up.",
+      "assertions": [
+        "Does not delete the branch, the worktree or the pr/87 ref while the state is OPEN",
+        "Says the LANDED line (or the exit status) came through a pipe or an unconditional echo and proves nothing",
+        "Reruns the same land command first, without rebasing or force-pushing the head branch",
+        "Runs the land command again because the base moved, with no pipe and no echo",
+        "Chains the state check to the land with && or an if, and cleans up only after it prints MERGED"
+      ]
+    },
+    {
+      "id": "finish-and-stop",
+      "prompt": "The operator said this morning: \"finish what's in flight and stop\". Ticket #41's PR #87 is in high review; nothing else is in flight. The queue's next row, #44, is free and its files are disjoint from #87. The reviewer has just reported one bug-level finding with its proof. What do you do from here until you stop?",
+      "expected_output": "Sends the bug back in one fix round, has it re-checked, lands #87, checks MERGED, cleans up, updates the trackers, and stops with a report. It starts nothing for #44, and ends by asking whether to resume with #44 or stay stopped.",
+      "assertions": [
+        "Launches no executor for #44 or any other new ticket",
+        "Takes #87 through the fix round, the re-check and landing",
+        "Updates the trackers for #41 after the land",
+        "Ends with a stop report of what landed",
+        "Ends by asking whether to resume with #44 or stay stopped"
+      ]
+    },
+    {
+      "id": "fix-round-decision",
+      "prompt": "Mode: autonomous. During the fix round of PR #87 (ticket #41, tier pricing), the executor stops and writes: \"The reviewer's bug F1 shows price_for(qty=0) crashes. Should qty=0 return 0.00, or raise ValueError? Both are a few lines. Waiting for your call.\" The operator is in a meeting and has asked not to be disturbed. What do you do?",
+      "expected_output": "Decides it as master, without asking the operator: picks the simplest safe option (for example raise ValueError on qty <= 0, which fails loudly and hides nothing), writes the choice to the executor so the fix round continues, and notes the decision on the issue or PR (and in the deferred issue if it is a for-now choice).",
+      "assertions": [
+        "Does not ask the operator and does not wait for the meeting to end",
+        "Picks exactly one option and gives the executor a go to finish the fix round",
+        "Records the decision in a durable place (the issue, the PR or the deferred issue), not only in chat",
+        "Does not open a new design discussion or a separate decision ticket that blocks the fix round"
+      ]
+    },
+    {
+      "id": "reviewer-model-refused",
+      "prompt": "The setup file says: executor model opus; reviewer models in order of preference: fable, then sonnet. You launched the reviewer for PR #87 on fable, and it replied in one line: \"model fable is not available on this account\". A probe shows sonnet is not available either. What do you do?",
+      "expected_output": "Tries the next listed model, sonnet, and since it is refused too, falls back to the executor's model (opus) for a fresh-context review rather than skipping it; says so on the PR, and later in the closing comment.",
+      "assertions": [
+        "Accounts for sonnet, the next model in the list, before any fallback",
+        "Runs the review anyway on the executor's model, in a fresh context, rather than skipping it or reviewing in the master's own context",
+        "Marks the PR as reviewed on the executor's model",
+        "Says the closing comment will name the fallback too"
+      ]
+    },
+    {
+      "id": "third-ticket",
+      "prompt": "Mode: autonomous. Ticket #41's PR #87 is in high review and its CI is still running. Ticket #44's executor is building on files disjoint from #87's. The queue's next row, #46, is free and its files are disjoint from both. You have nothing to do for the next ten minutes. What do you do?",
+      "expected_output": "Starts nothing for #46: two tickets are already in flight, which is the cap. Waits on the review and CI of #87 (reading CI with gh) and on #44's executor.",
+      "assertions": [
+        "Does not start #46",
+        "Names the two-in-flight cap (N in review and N+1 building) as the reason",
+        "The next action concerns #87 or #44, such as reading CI or the review"
+      ]
+    },
+    {
+      "id": "first-run",
+      "prompt": "The operator says: \"Run the next tickets on acme/widgets autonomously.\" The repository has no docs/agents/toryo-loop.md, no .claude/agents/ folder and no map issue that you know of. What do you do first?",
+      "expected_output": "Runs the setup, not a ticket: asks the knobs once (the queue, deferred and nits issues, the land command, the checks, the models, the mirror), writes docs/agents/toryo-loop.md from the template, copies the executor, executor-light and reviewer agent files with the chosen models, offers the guard hook, checks gh reads the tracker issues, and says a new session must start so the agent files load.",
+      "assertions": [
+        "Picks or builds no ticket before the setup is done",
+        "Asks the operator for the setup values (at least the queue issue, the land command, the check commands and the models)",
+        "Writes the setup file docs/agents/toryo-loop.md",
+        "Creates the executor, executor-light and reviewer agent definitions",
+        "Says a new session (or restart) is needed before the agents can be launched by type"
+      ]
+    }
+  ],
+  "trigger_queries": {
+    "should_trigger": [
+      "Work through the backlog with agents",
+      "Run the next tickets autonomously",
+      "Set up executor and reviewer agents for this repo",
+      "Finish what's in flight and stop",
+      "Take the next ticket from the queue and get it merged",
+      "Be the master session: brief executors, have a reviewer check each PR, land them",
+      "Resume the agent loop where it stopped after the usage limit",
+      "Do one ticket from the map issue and report back"
+    ],
+    "should_not_trigger": [
+      "Review this PR",
+      "Fix this bug",
+      "Draw a diagram of the release process",
+      "Write a plan for the new export feature",
+      "Merge PR 87",
+      "Execute this implementation plan task by task in this session",
+      "Triage the new issues and label them",
+      "Write a spec for the billing module and have it reviewed"
+    ]
+  }
+}

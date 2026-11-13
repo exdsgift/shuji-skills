@@ -1,0 +1,26 @@
+treeView-beta
+  accTitle: toryo-loop files
+  accDescr: The skill in shuji-skills holds the master's loop in SKILL.md, the details in references, the templates the setup copies in assets, examples in samples and the test cases in evals; each repo that uses it keeps its own setup file and agent definitions.
+shuji-skills/skills/toryo-loop/
+├── SKILL.md :::highlight ## the master's loop and its modes
+├── README.md ## for people, never read by the agent
+├── CHANGELOG.md
+├── LICENSE
+├── references/
+│   ├── setup.md ## first run: ask, write the setup file
+│   ├── tracks.md ## A, B, C and how a ticket is classified
+│   ├── review.md ## levels, proof of a bug, nits, the fix round
+│   ├── landing.md ## merge, check it landed, clean up
+│   ├── trackers.md ## queue table, deferred, nits, the mirror
+│   ├── recovery.md ## limits, a stalled agent, a false land
+│   ├── claude-code.md ## agent files, models, effort, resume
+│   └── trials.md ## changing the loop, the proved defaults
+├── assets/
+│   ├── toryo-loop.md ## the setup file template
+│   ├── briefs/ ## executor and reviewer templates
+│   ├── agents/ ## executor, executor-light, reviewer
+│   └── guard-hook.py ## optional: main and worktree guard
+├── samples/ ## a filled setup, briefs, a queue
+├── showcase/ ## the README pictures
+└── evals/
+    └── evals.json ## trigger queries and decision scenarios
